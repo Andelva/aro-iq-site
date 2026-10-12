@@ -438,7 +438,7 @@
   }
   function domainAttendance(l){
     const at=l.attendance||{}, d=attnDot(at.band);
-    return `<div class="domain card"><h3>Attendance</h3><p class="cap">Opportunity to learn — independent of assessment.</p>
+    return `<div class="domain card"><h3 class="h3-clk" data-att="All" role="button" tabindex="0" title="Open attendance detail">Attendance <span class="h3-more">View detail &rarr;</span></h3><p class="cap">Opportunity to learn — independent of assessment.</p>
       <div class="row"><span>Attendance rate</span><span class="band">${pct(at.rate)}</span></div>
       <div class="row"><span>Attention band (%)</span><span class="attn"><span class="dot ${d}"></span>${esc(at.band||"—")}</span></div>
       <div class="row"><span>STAR band (days absent)</span>${l.star?starCell(l,idx):'<span class="band">—</span>'}</div>
