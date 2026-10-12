@@ -228,9 +228,6 @@
   .arm-Low{background:#eafaf1;color:#0f7a43} .arm-Moderate{background:#fff4e6;color:#a95700} .arm-High{background:#fdeceb;color:#c0392b}
   .arm.hi{outline:3px solid var(--ink);outline-offset:-3px}
   .risk-head-right{display:flex;align-items:center;gap:10px}
-  .ar-toggle{border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;line-height:1;color:var(--muted);padding:5px 9px;border-radius:8px;font-weight:600}
-  .ar-toggle:hover{background:#eef4ff;border-color:#9fc0ee;color:var(--blue)}
-  .ar-collapsed-sum{font-size:13px;color:var(--muted);margin-top:8px}
   .msub{margin:18px 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
   /* Admin / white-label */
   .adm-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -346,8 +343,6 @@
 
   let ARO_DATA = [], ARO_COHIST = [], ARO_SUBGROUP = [], idx = 0, view = "cohort", LIVE = false;
   let cohortSort = {key:null, dir:1}, cohortFilter = {year:"", gender:"", ethnicity:"", cls:"", teacher:"", risk:"", star:""}, curPersona = null;
-  // Academic Risk card collapse state, remembered per viewer (best-effort).
-  let arCollapsed = (()=>{ try{ return localStorage.getItem("aro.arCollapsed")==="1"; }catch(_){ return false; } })();
 
   // Plain-language glosses for the governed categorical values (display only).
   const POS_GLOSS={Secure:"at the expected curriculum level",Developing:"approaching the expected level",Emerging:"below the expected level"};
@@ -358,51 +353,18 @@
     const lvl=derived?ar.academic_risk:"Not Derived";
     const badgeCls=derived?("b-"+esc(lvl)):"b-none";
     const cardCls=derived?("risk-"+esc(lvl)):"risk-none";
-    const toggleTxt=arCollapsed?"▸ Expand":"▾ Minimise";
-    const header=`<div class="risk-top"><span class="risk-title">Academic Risk<span class="ar-ref" title="Traceability: governed derivation rule BR-AR-004 and reporting view BR-AR-005">BR-AR-004/005</span></span><span class="risk-head-right"><span class="risk-badge ${badgeCls}">${esc(lvl)}</span><button class="ar-toggle" data-artoggle="1" aria-expanded="${!arCollapsed}" title="${arCollapsed?"Expand":"Minimise"} Academic Risk">${toggleTxt}</button></span></div>`;
-    if(arCollapsed){
-      const sum=derived
-        ? `${esc(lvl)} risk${ar.contributing_subject?` · driven by ${esc(ar.contributing_subject)}`:""} · attendance ${esc(ar.attendance_escalation||"—")}`
-        : `Not Derived — ${esc(ar.not_derived_reason||"insufficient intelligence")} (a status, never Low)`;
-      return `<div class="risk-card ${cardCls}">${header}<div class="ar-collapsed-sum">${sum}</div></div>`;
-    }
+    const header=`<div class="risk-top"><span class="risk-title">Academic Risk<span class="ar-ref" title="Traceability: governed derivation rule BR-AR-004 and reporting view BR-AR-005">BR-AR-004/005</span></span><span class="risk-head-right"><span class="risk-badge ${badgeCls}">${esc(lvl)}</span></span></div>`;
     if(!derived){
-      return `<div class="risk-card risk-none">${header}<div class="lineage" style="margin-top:12px"><b>Not Derived is a status, not a classification.</b> Reason: ${esc(ar.not_derived_reason||"insufficient intelligence")}. Missing or insufficient intelligence never defaults to Low.</div></div>`;
+      return `<div class="risk-card risk-none">${header}<div class="lineage" style="margin-top:12px"><b>Not Derived is a status, not a classification.</b> Reason: ${esc(ar.not_derived_reason||"insufficient intelligence")}. Missing or insufficient intelligence never defaults to Low. <a class="clickable" data-arhelp="1" role="button" tabindex="0">How Academic Risk is derived →</a></div></div>`;
     }
-    const subj=ar.contributing_subject?` <span class="ar-subj">· driven by ${esc(ar.contributing_subject)}</span>`:"";
-    const lp=ar.learning_position, prog=ar.progress, asr=ar.assessment_risk, att=ar.attendance_escalation;
     // Lede — the one-line takeaway, in plain words.
     const lede=`${esc(l.name)} is at <b>${esc(lvl)}</b> academic risk${ar.contributing_subject?`, driven by <b>${esc(ar.contributing_subject)}</b>`:""}.`;
     // Strengths — keep what's going well visible, so one flagged subject never reads as "all subjects are a concern".
     const strengthsL=(l.assessment||[]).filter(d=>!isCognitive(d) && d.subject!==ar.contributing_subject && ((d.band==="At"||d.band==="Above")||progClass(d.progress)==="up"));
     const strHtml=strengthsL.length?`<p class="ar-strengths" style="margin:4px 0 0;font-size:13px;color:var(--muted)"><b>Strengths:</b> ${strengthsL.map(d=>`${esc(d.subject)} (${esc(d.band||"")}${d.progress?`, ${esc(String(d.progress).toLowerCase())}`:""})`).join(" &middot; ")}. Only <b>${esc(ar.contributing_subject||"the flagged subject")}</b> drives this result.</p>`:"";
-    // Why — the governed drivers, spelled out.
-    const attEffect = asr==="High"
-      ? `attendance can't push it any higher (<b>High</b> is the ceiling)`
-      : (att==="No Concern" ? `attendance leaves that unchanged`
-          : `attendance then lifts it one step`);
-    const because=`<b>Assessment</b> is the lead signal${ar.contributing_subject?` (from <b>${esc(ar.contributing_subject)}</b>)`:""}: this learner is working <b>${esc(lp||"—")}</b>${POS_GLOSS[lp]?` — ${esc(POS_GLOSS[lp])}`:""}, and progress is <b>${esc(prog||"—")}</b> ${progArrow(prog)}, giving a <b>${esc(asr||"—")}</b> assessment concern. Then the <b>attendance check</b>: ${att&&ATT_GLOSS[att]?esc(ATT_GLOSS[att]):`attendance is <b>${esc(att||"—")}</b>`}, so ${attEffect}. The result is <b>${esc(lvl)}</b> academic risk.`;
-    const step2note=asr==="High"
-      ? `The assessment concern is already <b>High</b>, so attendance can't raise it further — <b>High</b> is the ceiling. (Attendance would only lift a Low or Moderate result.)`
-      : (att==="No Concern"
-          ? `Attendance is not currently a concern and does not increase this result.`
-          : `Attendance (<b>${esc(att)}</b>) escalates the assessment concern one step.`);
     return `<div class="risk-card ${cardCls}">${header}
       <div class="ar-lede">${lede}</div>${strHtml}
-      <p class="ar-because">${because}</p>
-      <div class="ar-mech-h">How this was worked out — two fixed lookups, not a score</div>
-      <div class="ar-steps">
-        <div class="ar-step"><span class="ar-num">1</span><div>
-          <div class="ar-lab">Assessment signal${subj}</div>
-          <div class="ar-flow"><span class="chip" title="How far this learner is against curriculum expectation"><span class="k">Learning position</span>${esc(lp||"—")}</span><span class="arrow">+</span><span class="chip" title="Direction of travel over time"><span class="k">Progress</span>${esc(prog||"—")} ${progArrow(prog)}</span><span class="arrow">→</span><span class="chip strong"><span class="k">Assessment concern</span>${esc(asr||"—")}</span></div>
-        </div></div>
-        <div class="ar-step"><span class="ar-num">2</span><div>
-          <div class="ar-lab">Attendance adjustment</div>
-          <div class="ar-flow"><span class="chip"><span class="k">Assessment concern</span>${esc(asr||"—")}</span><span class="arrow">+</span><span class="chip" title="Attendance concern level"><span class="k">Attendance</span>${esc(att||"—")}</span><span class="arrow">→</span><span class="chip strong"><span class="k">Academic risk</span>${esc(lvl)}</span></div>
-          <div class="ar-note">${step2note}</div>
-        </div></div>
-      </div>
-      <div class="lineage ar-help"><b>Assessment + Attendance only</b> — Learning Support is never counted, and attendance alone never reaches High. <span class="more" data-asmt="Curriculum" role="button" tabindex="0">View contributing assessments &rarr;</span> <a class="clickable" data-arhelp="1" role="button" tabindex="0">See the exact lookup tables →</a></div><div class="lineage" style="margin-top:6px;opacity:.72">Calculation ${esc(ar.calculation_version||"n/a")} &middot; as at ${esc(ar.intelligence_date||"n/a")}</div></div>`;
+      <div class="lineage ar-help" style="margin-top:12px"><b>Assessment + Attendance only</b> — Learning Support is never counted, and attendance alone never reaches High. <span class="more" data-asmt="Curriculum" role="button" tabindex="0">View contributing assessments &rarr;</span> <a class="clickable" data-arhelp="1" role="button" tabindex="0">See how this risk was derived →</a></div><div class="lineage" style="margin-top:6px;opacity:.72">Calculation ${esc(ar.calculation_version||"n/a")} &middot; as at ${esc(ar.intelligence_date||"n/a")}</div></div>`;
   }
   // BR-AR-004 governed matrices (fixed lookups, matching V023). Shown read-only in the help popup.
   const AR_M1_ROWS=["Secure","Developing","Emerging"], AR_M1_COLS=["Improving","Stable","Declining"];
@@ -418,12 +380,38 @@
     const l=ARO_DATA[i]; if(!l) return; const ar=l.academic_risk||{};
     if(ar.derivation_status!=="Derived"){ $("modal").innerHTML=`<button class="modal-close" data-close aria-label="Close">×</button><div class="modal-head"><div><div class="modal-title">Academic Risk — Not Derived</div><div class="modal-sub">${esc(l.name)}</div></div></div><div class="modal-body"><p>Academic Risk is <b>Not Derived</b> for this learner: ${esc(ar.not_derived_reason||"insufficient intelligence")}. Missing or insufficient intelligence never defaults to Low — it is reported as a status.</p></div>`; $("modal-bg").classList.add("open"); return; }
     const subj=ar.contributing_subject?` (driven by ${esc(ar.contributing_subject)})`:"";
+    const subjInline=ar.contributing_subject?` <span class="ar-subj">· driven by ${esc(ar.contributing_subject)}</span>`:"";
+    const lvl=ar.academic_risk, lp=ar.learning_position, prog=ar.progress, asr=ar.assessment_risk, att=ar.attendance_escalation;
+    const lede=`${esc(l.name)} is at <b>${esc(lvl)}</b> academic risk${ar.contributing_subject?`, driven by <b>${esc(ar.contributing_subject)}</b>`:""}.`;
+    const attEffect = asr==="High"
+      ? `attendance can't push it any higher (<b>High</b> is the ceiling)`
+      : (att==="No Concern" ? `attendance leaves that unchanged` : `attendance then lifts it one step`);
+    const because=`<b>Assessment</b> is the lead signal${ar.contributing_subject?` (from <b>${esc(ar.contributing_subject)}</b>)`:""}: this learner is working <b>${esc(lp||"—")}</b>${POS_GLOSS[lp]?` — ${esc(POS_GLOSS[lp])}`:""}, and progress is <b>${esc(prog||"—")}</b> ${progArrow(prog)}, giving a <b>${esc(asr||"—")}</b> assessment concern. Then the <b>attendance check</b>: ${att&&ATT_GLOSS[att]?esc(ATT_GLOSS[att]):`attendance is <b>${esc(att||"—")}</b>`}, so ${attEffect}. The result is <b>${esc(lvl)}</b> academic risk.`;
+    const step2note=asr==="High"
+      ? `The assessment concern is already <b>High</b>, so attendance can't raise it further — <b>High</b> is the ceiling. (Attendance would only lift a Low or Moderate result.)`
+      : (att==="No Concern"
+          ? `Attendance is not currently a concern and does not increase this result.`
+          : `Attendance (<b>${esc(att)}</b>) escalates the assessment concern one step.`);
     $("modal").innerHTML=`<button class="modal-close" data-close aria-label="Close">×</button>
       <div class="modal-head">${avatarHtml(l,"modal-avatar")}
         <div><div class="modal-title">${esc(learnerFullName(l))}</div><div class="modal-sub">How Academic Risk is derived · ${esc(ar.academic_risk)}</div></div>
         <span class="pill b-${esc(ar.academic_risk)}">${esc(ar.academic_risk)}</span></div>
       <div class="modal-body">
-        <p class="lineage" style="margin:0 0 10px">BR-AR-004 is <b>two fixed lookup tables</b> — no numbers are added or weighted. This learner's path is highlighted (◄).</p>
+        <div class="ar-lede" style="margin-top:2px">${lede}</div>
+        <p class="ar-because" style="margin:10px 0 0">${because}</p>
+        <div class="ar-mech-h">How this was worked out — two fixed lookups, not a score</div>
+        <div class="ar-steps">
+          <div class="ar-step"><span class="ar-num">1</span><div>
+            <div class="ar-lab">Assessment signal${subjInline}</div>
+            <div class="ar-flow"><span class="chip" title="How far this learner is against curriculum expectation"><span class="k">Learning position</span>${esc(lp||"—")}</span><span class="arrow">+</span><span class="chip" title="Direction of travel over time"><span class="k">Progress</span>${esc(prog||"—")} ${progArrow(prog)}</span><span class="arrow">→</span><span class="chip strong"><span class="k">Assessment concern</span>${esc(asr||"—")}</span></div>
+          </div></div>
+          <div class="ar-step"><span class="ar-num">2</span><div>
+            <div class="ar-lab">Attendance adjustment</div>
+            <div class="ar-flow"><span class="chip"><span class="k">Assessment concern</span>${esc(asr||"—")}</span><span class="arrow">+</span><span class="chip" title="Attendance concern level"><span class="k">Attendance</span>${esc(att||"—")}</span><span class="arrow">→</span><span class="chip strong"><span class="k">Academic risk</span>${esc(lvl)}</span></div>
+            <div class="ar-note">${step2note}</div>
+          </div></div>
+        </div>
+        <p class="lineage" style="margin:16px 0 10px">BR-AR-004 is <b>two fixed lookup tables</b> — no numbers are added or weighted. This learner's path is highlighted (◄).</p>
         <div class="msub" style="margin:6px 0 4px">Step 1 — Learning position × Progress → Assessment risk${subj}</div>
         ${arMatrix(AR_M1_ROWS,AR_M1_COLS,AR_M1,ar.learning_position,ar.progress)}
         <p class="ar-note" style="margin:2px 0 0">Most-severe learning domain: <b>${esc(ar.learning_position||"—")}</b> position, <b>${esc(ar.progress||"—")}</b> → <b>${esc(ar.assessment_risk||"—")}</b> assessment risk.</p>
@@ -513,9 +501,21 @@
   }
   // Learner Voice in context (Suggestion 5): surface the learner's own self-report
   // beside the concern, clearly distinguished from ARO IQ's derived interpretation.
-  function voiceInContextCard(l){
-    const ar=l.academic_risk||{}; const subj=ar.contributing_subject; const v=l.voice||[];
-    if(!v.length) return "";
+  // Shown as its own pop-up (opened from the Learner view), like the risk derivation.
+  function voiceContextScope(l){
+    const ar=l.academic_risk||{}, subj=ar.contributing_subject, v=l.voice||[];
+    return (subj && v.some(r=>r.subject===subj))?`for <b>${esc(subj)}</b> (the subject needing attention)`:`across subjects`;
+  }
+  function voiceContextTrigger(l){
+    if(!(l.voice||[]).length) return "";
+    return `<div class="card" style="margin-top:14px"><h2 class="sec">Learner voice in context</h2>
+      <p class="lineage" style="margin:0 0 12px">What the <b>learner reported</b> ${voiceContextScope(l)}, read beside the concern &mdash; the learner's own view, <b>not ARO IQ's derived interpretation</b>; it never feeds Academic Risk or any combined score (&sect;15).</p>
+      <button class="btn" data-vcontext="1">View learner voice in context &rarr;</button></div>`;
+  }
+  function openVoiceContext(i){
+    const l=ARO_DATA[i]; if(!l) return;
+    const ar=l.academic_risk||{}, subj=ar.contributing_subject, v=l.voice||[];
+    if(!v.length) return;
     const shown=(subj && v.some(r=>r.subject===subj)) ? v.filter(r=>r.subject===subj) : v;
     const bySub={}; shown.forEach(r=>{(bySub[r.subject]=bySub[r.subject]||[]).push(r);});
     const legend=`<div class="legend" style="margin:2px 0 12px">${[["Not Yet",1],["Starting To",2],["Mostly",3],["Confident",4],["Very Confident",5]].map(([lab,o])=>`<span><span class="sw" style="background:${voiceColor(o)}"></span>${lab}</span>`).join("")}</div>`;
@@ -524,8 +524,13 @@
         .map(r=>`<div class="row"><span>${esc(r.question)}</span><span class="vpill" style="background:${voiceColor(r.response_ordinal)}">${esc(r.response)}</span></div>`).join("");
       return `<div class="domain card"><h3>${esc(s)}</h3><p class="cap">Self-reported clarity &amp; confidence &mdash; the learner's voice.</p>${rows}</div>`;
     }).join("");
-    const scope=(subj && bySub[subj])?`for <b>${esc(subj)}</b> (the subject needing attention)`:`across subjects`;
-    return `<div class="card" style="margin-top:14px"><h2 class="sec">Learner voice in context</h2><p class="lineage" style="margin:6px 0 8px">What the <b>learner reported</b> ${scope} &mdash; shown beside the concern, as a card per subject. This is <b>the learner's own view, not ARO IQ's derived interpretation</b>; it never feeds Academic Risk or any combined score (&sect;15).</p>${legend}<div class="domains">${cards}</div></div>`;
+    $("modal").innerHTML=`<button class="modal-close" data-close aria-label="Close">×</button>
+      <div class="modal-head">${avatarHtml(l,"modal-avatar")}
+        <div><div class="modal-title">${esc(learnerFullName(l))}</div><div class="modal-sub">Learner voice in context</div></div></div>
+      <div class="modal-body">
+        <p class="lineage" style="margin:0 0 10px">What the <b>learner reported</b> ${voiceContextScope(l)} &mdash; shown beside the concern, as a card per subject. This is <b>the learner's own view, not ARO IQ's derived interpretation</b>; it never feeds Academic Risk or any combined score (&sect;15).</p>
+        ${legend}<div class="domains">${cards}</div></div>`;
+    $("modal-bg").classList.add("open");
   }
   // Response & support context (Wave 3 / Suggestion 3): what support is recorded,
   // read beside the concern. Shows only what the governed evidence holds; fields the
@@ -603,7 +608,7 @@
       ${riskHistoryCard(l)}
       ${historicalCompareCard(l)}
       ${responseContextCard(l)}
-      ${voiceInContextCard(l)}
+      ${voiceContextTrigger(l)}
       <p class="lineage" style="margin-top:14px">Every value is derived, versioned intelligence from the governed <code>reporting.*</code> views under row-level security, fetched server-side for the current identity. No prescribed actions or narrative — professional judgement stays with the educator.</p>`;
   }
   // Ministry attendance bands (days absent in a term). Mirrors governed reference.star_band;
@@ -1206,7 +1211,7 @@
     const asf=e.target.closest("[data-asmtfilter]"); if(asf){e.preventDefault();asmtState.filter=asf.dataset.asmtfilter;renderAsmtModal();return;}
     const asm=e.target.closest("[data-asmt]"); if(asm){e.preventDefault();openAssessmentModal(asm.dataset.asmtIdx!=null?+asm.dataset.asmtIdx:idx, asm.dataset.asmt);return;}
     const arh=e.target.closest("[data-arhelp]"); if(arh){e.preventDefault();openArHelp(idx);return;}
-    const art=e.target.closest("[data-artoggle]"); if(art){e.preventDefault();arCollapsed=!arCollapsed;try{localStorage.setItem("aro.arCollapsed",arCollapsed?"1":"0");}catch(_){}render();return;}
+    const vcx=e.target.closest("[data-vcontext]"); if(vcx){e.preventDefault();openVoiceContext(idx);return;}
     const sch=e.target.closest("[data-scheme]"); if(sch){e.preventDefault();saveScheme(sch.dataset.scheme);return;}
     const scc=e.target.closest("[data-scheme-custom]"); if(scc){e.preventDefault();const hx=(($("custom-hex")||{}).value||"").trim();if(/^#[0-9a-fA-F]{6}$/.test(hx))saveScheme("custom",hx);else adminMsg("Enter a colour like #2b2f39",true);return;}
     const acc=e.target.closest("[data-accent]"); if(acc){e.preventDefault();saveAccent(acc.dataset.accent);return;}
