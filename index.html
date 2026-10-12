@@ -1123,11 +1123,16 @@
     el.innerHTML = view==="learner"?renderLearner(l):view==="journey"?renderJourney(l):view==="attendance"?renderAttendance(l):view==="cohort"?renderCohort():view==="cohhist"?renderCohortHistory():view==="students"?renderStudents():view==="voice"?renderVoice(l):view==="coverage"?renderCoverage():view==="admin"?renderAdmin():view==="access"?renderAccess():renderTrust();
   }
   function fillPicker(){
+    // The picker mirrors the active cohort filters: it lists only the learners the
+    // filter bar is currently showing (falls back to everyone when nothing matches).
     // Options are sorted alphabetically by name; each option's value keeps the learner's
     // original index so selection still works, and the current learner stays selected.
-    $("picker").innerHTML=ARO_DATA.map((l,i)=>({l,i}))
-      .sort((a,b)=>learnerFullName(a.l).localeCompare(learnerFullName(b.l),undefined,{sensitivity:"base"}))
-      .map(({l,i})=>{const r=l.academic_risk&&l.academic_risk.derivation_status==="Derived"?l.academic_risk.academic_risk:"Not Derived";return `<option value="${i}"${i===idx?" selected":""}>${esc(learnerFullName(l))} · ${esc(l.year_level)} · Risk: ${esc(r)}</option>`;}).join("");
+    const filtered=cohortRows();
+    const list=(filtered.length?filtered:ARO_DATA.map((l,i)=>({l,i}))).slice()
+      .sort((a,b)=>learnerFullName(a.l).localeCompare(learnerFullName(b.l),undefined,{sensitivity:"base"}));
+    const anyF=cohortFilter.year||cohortFilter.gender||cohortFilter.ethnicity||cohortFilter.cls||cohortFilter.teacher||cohortFilter.risk||cohortFilter.star;
+    const lead=anyF?`<option value="" disabled${list.some(x=>x.i===idx)?"":" selected"}>${list.length} match${list.length===1?"":"es"} the filters…</option>`:"";
+    $("picker").innerHTML=lead+list.map(({l,i})=>{const r=l.academic_risk&&l.academic_risk.derivation_status==="Derived"?l.academic_risk.academic_risk:"Not Derived";return `<option value="${i}"${i===idx?" selected":""}>${esc(learnerFullName(l))} · ${esc(l.year_level)} · Risk: ${esc(r)}</option>`;}).join("");
   }
   // Make a learner the selected learner across the app and move to a learner-scoped view.
   // Learner detail is a tabbed pop-up (Learner view / Journey / Attendance / Voice).
@@ -1176,7 +1181,7 @@
 
   $("nav").addEventListener("click",(e)=>{const b=e.target.closest("button[data-view]");if(!b)return;view=b.dataset.view;$("nav").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render();});
   $("picker").addEventListener("change",()=>{openLearnerModal(+$("picker").value);});
-  document.addEventListener("change",(e)=>{const cf=e.target.closest("[data-cfilter]"); if(cf){cohortFilter[cf.dataset.cfilter]=cf.value; render();}});
+  document.addEventListener("change",(e)=>{const cf=e.target.closest("[data-cfilter]"); if(cf){cohortFilter[cf.dataset.cfilter]=cf.value; fillPicker(); render();}});
   // Live-preview the custom sidebar colour while picking (saved only on "Use custom").
   document.addEventListener("input",(e)=>{
     if(e.target.id==="custom-color"){ const v=e.target.value, hx=$("custom-hex"); if(hx)hx.value=v;
@@ -1210,7 +1215,7 @@
     const aag=e.target.closest("[data-add-grant]"); if(aag){e.preventDefault();accessAdd(aag.dataset.addGrant);return;}
     const st=e.target.closest("[data-star-band]"); if(st){e.preventDefault();openStarModal(st.dataset.starIdx!=null?+st.dataset.starIdx:idx);return;}
     const so=e.target.closest("[data-sort]"); if(so){e.preventDefault();const k=so.dataset.sort;if(cohortSort.key===k)cohortSort.dir=-cohortSort.dir;else{cohortSort.key=k;cohortSort.dir=1;}render();return;}
-    const cfc=e.target.closest("[data-cfilter-clear]"); if(cfc){e.preventDefault();cohortFilter={year:"",gender:"",ethnicity:"",cls:"",teacher:"",risk:"",star:""};render();return;}
+    const cfc=e.target.closest("[data-cfilter-clear]"); if(cfc){e.preventDefault();cohortFilter={year:"",gender:"",ethnicity:"",cls:"",teacher:"",risk:"",star:""};fillPicker();render();return;}
     const ex=e.target.closest("[data-export]"); if(ex){e.preventDefault();exportCohort();return;}
     const pr=e.target.closest("[data-print]"); if(pr){e.preventDefault();window.print();return;}
     const t=e.target.closest("[data-open]"); if(t){e.preventDefault();openStudentModal(ARO_DATA[+t.dataset.open]);return;}
