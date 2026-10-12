@@ -178,10 +178,10 @@
   /* Large tabbed learner pop-up (sits BELOW the small drill-down modal so those stack on top) */
   .lmodal-bg{z-index:45}
   .lmodal{max-width:980px;max-height:92vh}
-  .lmodal-tabs{display:flex;gap:4px;padding:14px 56px 0 18px;border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap}
-  .lmtab{border:0;background:transparent;padding:9px 14px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;border-radius:6px 6px 0 0}
-  .lmtab:hover{color:var(--ink);background:#f3f6fb}
-  .lmtab.active{color:#1a73e8;border-bottom-color:#1a73e8}
+  .lmodal-tabs{display:flex;gap:7px;padding:15px 56px 15px 18px;border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;background:color-mix(in srgb,var(--side-bg) 6%,#fff)}
+  .lmtab{border:1px solid var(--line);background:#fff;padding:10px 18px;font-size:14px;font-weight:650;letter-spacing:.01em;color:var(--muted);cursor:pointer;border-radius:999px;transition:background .12s,color .12s,border-color .12s,box-shadow .12s}
+  .lmtab:hover{color:var(--ink);border-color:#9fc0ee;background:#f3f6fb}
+  .lmtab.active,.lmtab.active:hover{background:var(--side-accent);color:var(--side-accent-ink);border-color:var(--side-accent);box-shadow:0 3px 10px color-mix(in srgb,var(--side-accent) 38%,transparent)}
   .lmodal-body{padding:18px 20px;overflow:auto;flex:1 1 auto;min-height:0;background:#f4f6f9}
   .lmodal-body .learner-head{margin-top:0}
   .modal-head{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:20px 22px;border-bottom:1px solid var(--line);flex:0 0 auto}
