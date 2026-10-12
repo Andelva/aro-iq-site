@@ -82,6 +82,9 @@
   /* Section headings across all pages: themed band in the sidebar colour (75% bg),
      spanning the card (18px padding). High specificity so it beats per-element bases. */
   .app .domain h3, .app h2.sec, .app .adm-card h3, .app .trust h3{font-size:13px;font-weight:700;letter-spacing:.02em;margin:-18px -18px 14px;padding:11px 16px;background:color-mix(in srgb, var(--side-bg) 75%, transparent);color:var(--side-ink);border-radius:13px 13px 0 0} .domain .cap{font-size:11.5px;color:var(--muted);margin:0 0 12px}
+  .app .domain h3.h3-clk{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer}
+  .app .domain h3.h3-clk:hover{filter:brightness(1.12)}
+  .h3-more{font-size:11px;font-weight:600;opacity:.85}
   .row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #eef1f6;font-size:13px}
   .row:first-of-type{border-top:0}
   .prog{font-weight:700;font-size:12px} .up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--muted)}
@@ -431,7 +434,7 @@
     const cur=a.filter(d=>!isCognitive(d)), cog=a.filter(isCognitive);
     const curRows=cur.length?cur.map(asmtRow).join(""):`<div class="empty">No comparable assessment evidence.</div>`;
     const cogBlock=cog.length?`<div class="cog-head">Cognitive (Cambridge) — context only<span class="cog-tag">excluded from Academic Risk</span></div>${cog.map(asmtRow).join("")}`:"";
-    return `<div class="domain card"><h3>Assessment</h3><p class="cap">Achievement band &amp; progress, per learning domain — independent.</p>${curRows}${cogBlock}</div>`;
+    return `<div class="domain card"><h3 class="h3-clk" data-asmt="All" role="button" tabindex="0" title="Open assessment detail">Assessment <span class="h3-more">View detail &rarr;</span></h3><p class="cap">Achievement band &amp; progress, per learning domain — independent.</p>${curRows}${cogBlock}</div>`;
   }
   function domainAttendance(l){
     const at=l.attendance||{}, d=attnDot(at.band);
@@ -529,7 +532,7 @@
         <div><div class="modal-title">${esc(learnerFullName(l))}</div><div class="modal-sub">Learner voice in context</div></div></div>
       <div class="modal-body">
         <p class="lineage" style="margin:0 0 10px">What the <b>learner reported</b> ${voiceContextScope(l)} &mdash; shown beside the concern, as a card per subject. This is <b>the learner's own view, not ARO IQ's derived interpretation</b>; it never feeds Academic Risk or any combined score (&sect;15).</p>
-        ${legend}<div class="domains">${cards}</div></div>`;
+        ${legend}<div style="display:flex;flex-direction:column;gap:12px">${cards}</div></div>`;
     $("modal-bg").classList.add("open");
   }
   // Response & support context (Wave 3 / Suggestion 3): what support is recorded,
@@ -540,7 +543,7 @@
     const rows=recs.map(r=>{
       const faint=(t)=>`<span style="color:var(--faint)">${t}</span>`;
       const head=`<b>${esc(r.support_date||"")}</b>${r.status?` <span class="band">${esc(r.status)}</span>`:""}${r.note?` &middot; ${esc(r.note)}`:""}`;
-      return `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px">
+      return `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${head}</div>
         <div class="lineage" style="margin:4px 0 0">Responsible educator: <b>${r.responsible_educator?esc(r.responsible_educator):faint("not recorded")}</b> &middot; Planned review: <b>${r.review_date?esc(r.review_date):faint("not recorded")}</b> &middot; Recorded barrier: ${r.barrier?esc(r.barrier):faint("not recorded")}</div>
       </div>`;
