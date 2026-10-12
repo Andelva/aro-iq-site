@@ -241,11 +241,16 @@
   .logo-preview img{max-width:180px;max-height:96px;height:auto;display:block}
   .adm-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .adm-file{font:inherit;font-size:12.5px}
-  .btn{border:1px solid #ccd9ec;background:#fff;color:var(--blue);font:inherit;font-size:13px;font-weight:600;border-radius:9px;padding:8px 14px;cursor:pointer}
+  .btn{border:1px solid #ccd9ec;background:#fff;color:var(--blue);font:inherit;font-size:13px;font-weight:600;border-radius:9px;padding:8px 14px;cursor:pointer;transition:background .12s,border-color .12s,color .12s,box-shadow .12s}
   .btn:hover{background:#eef4ff;border-color:#9fc0ee}
-  .btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
-  .btn.primary:hover{background:#1565d8}
-  .btn.ghost{color:var(--muted)}
+  .btn.primary{background:var(--side-accent);color:var(--side-accent-ink);border-color:var(--side-accent);box-shadow:0 2px 8px color-mix(in srgb,var(--side-accent) 28%,transparent)}
+  .btn.primary:hover{filter:brightness(1.08);background:var(--side-accent);color:var(--side-accent-ink)}
+  .btn.success{background:var(--green);color:#fff;border-color:var(--green);box-shadow:0 2px 8px rgba(15,157,88,.26)}
+  .btn.success:hover{filter:brightness(1.07);background:var(--green);color:#fff}
+  .btn.danger{background:#fff;color:var(--red);border-color:#f3b6b2}
+  .btn.danger:hover{background:#fdeceb;border-color:var(--red);color:var(--red)}
+  .btn.ghost{color:var(--muted);background:#fff;border-color:var(--line)}
+  .btn.ghost:hover{background:#f3f6fb;border-color:#cdd9ea;color:var(--ink)}
   .swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
   .swatch{border:2px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;display:flex;flex-direction:column;gap:8px;background:#fff;text-align:left;font:inherit}
   .swatch:hover{border-color:#9fc0ee}
@@ -1344,7 +1349,7 @@
         <div class="custom-row">
           <input type="color" id="custom-color" value="${esc(customColor)}" aria-label="Custom sidebar colour">
           <input type="text" id="custom-hex" value="${esc(customColor)}" maxlength="7" aria-label="Custom colour hex" placeholder="#2b2f39">
-          <button class="btn${branding.scheme==="custom"?" primary":""}" data-scheme-custom>Use custom</button>
+          <button class="btn primary" data-scheme-custom>Use custom</button>
         </div>
         <div class="msub" style="margin:18px 0 8px">Selected item colour</div>
         <p class="cap" style="margin:-4px 0 12px">The highlight on the active navigation item.</p>
@@ -1352,7 +1357,7 @@
         <div class="custom-row">
           <input type="color" id="accent-color" value="${esc(curAccent)}" aria-label="Custom accent colour">
           <input type="text" id="accent-hex" value="${esc(curAccent)}" maxlength="7" aria-label="Accent hex" placeholder="#1a73e8">
-          <button class="btn" data-accent-custom>Use custom</button>
+          <button class="btn primary" data-accent-custom>Use custom</button>
           <button class="btn ghost" data-accent-reset>Default</button>
         </div>
       </div>
@@ -1392,7 +1397,7 @@
         : `<span class="empty" style="font-size:12.5px">No classes assigned${u.broad?" (has broader access)":""}</span>`;
       const addCtl=u.broad
         ? `<span class="adm-note" style="margin:0">This user already has ${u.broad==="ALL"?"all-learner":"whole-school"} access.</span>`
-        : `<span class="acc-add"><select data-add-user="${esc(u.id)}" aria-label="Class to grant"><option value="">Add class…</option>${groupOpts}</select><button class="btn" data-add-grant="${esc(u.id)}">Add</button></span>`;
+        : `<span class="acc-add"><select data-add-user="${esc(u.id)}" aria-label="Class to grant"><option value="">Add class…</option>${groupOpts}</select><button class="btn success" data-add-grant="${esc(u.id)}">Add</button></span>`;
       return `<div class="acc-user"><div class="acc-head"><div><b>${esc(u.name||u.id)}</b><span class="acc-id">${esc(u.id)}</span>${u.active?"":` <span class="acc-badge warn">inactive</span>`}</div>${broad}</div>
         <div class="acc-classes">${chips}</div>
         <div class="acc-actions">${addCtl}</div></div>`;
