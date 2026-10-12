@@ -434,11 +434,11 @@
     const cur=a.filter(d=>!isCognitive(d)), cog=a.filter(isCognitive);
     const curRows=cur.length?cur.map(asmtRow).join(""):`<div class="empty">No comparable assessment evidence.</div>`;
     const cogBlock=cog.length?`<div class="cog-head">Cognitive (Cambridge) — context only<span class="cog-tag">excluded from Academic Risk</span></div>${cog.map(asmtRow).join("")}`:"";
-    return `<div class="domain card"><h3 class="h3-clk" data-asmt="All" role="button" tabindex="0" title="Open assessment detail">Assessment <span class="h3-more">View detail &rarr;</span></h3><p class="cap">Achievement band &amp; progress, per learning domain — independent.</p>${curRows}${cogBlock}</div>`;
+    return `<div class="domain card"><h3 class="h3-clk" data-goto="journey" role="button" tabindex="0" title="Open the Learner journey tab (assessment detail)">Assessment <span class="h3-more">Open Journey &rarr;</span></h3><p class="cap">Achievement band &amp; progress, per learning domain — independent.</p>${curRows}${cogBlock}</div>`;
   }
   function domainAttendance(l){
     const at=l.attendance||{}, d=attnDot(at.band);
-    return `<div class="domain card"><h3 class="h3-clk" data-att="All" role="button" tabindex="0" title="Open attendance detail">Attendance <span class="h3-more">View detail &rarr;</span></h3><p class="cap">Opportunity to learn — independent of assessment.</p>
+    return `<div class="domain card"><h3 class="h3-clk" data-goto="attendance" role="button" tabindex="0" title="Open the Attendance tab">Attendance <span class="h3-more">Open tab &rarr;</span></h3><p class="cap">Opportunity to learn — independent of assessment.</p>
       <div class="row"><span>Attendance rate</span><span class="band">${pct(at.rate)}</span></div>
       <div class="row"><span>Attention band (%)</span><span class="attn"><span class="dot ${d}"></span>${esc(at.band||"—")}</span></div>
       <div class="row"><span>STAR band (days absent)</span>${l.star?starCell(l,idx):'<span class="band">—</span>'}</div>
@@ -513,27 +513,7 @@
     if(!(l.voice||[]).length) return "";
     return `<div class="card" style="margin-top:14px"><h2 class="sec">Learner voice in context</h2>
       <p class="lineage" style="margin:0 0 12px">What the <b>learner reported</b> ${voiceContextScope(l)}, read beside the concern &mdash; the learner's own view, <b>not ARO IQ's derived interpretation</b>; it never feeds Academic Risk or any combined score (&sect;15).</p>
-      <button class="btn" data-vcontext="1">View learner voice in context &rarr;</button></div>`;
-  }
-  function openVoiceContext(i){
-    const l=ARO_DATA[i]; if(!l) return;
-    const ar=l.academic_risk||{}, subj=ar.contributing_subject, v=l.voice||[];
-    if(!v.length) return;
-    const shown=(subj && v.some(r=>r.subject===subj)) ? v.filter(r=>r.subject===subj) : v;
-    const bySub={}; shown.forEach(r=>{(bySub[r.subject]=bySub[r.subject]||[]).push(r);});
-    const legend=`<div class="legend" style="margin:2px 0 12px">${[["Not Yet",1],["Starting To",2],["Mostly",3],["Confident",4],["Very Confident",5]].map(([lab,o])=>`<span><span class="sw" style="background:${voiceColor(o)}"></span>${lab}</span>`).join("")}</div>`;
-    const cards=Object.keys(bySub).sort().map(s=>{
-      const rows=bySub[s].sort((a,b)=>a.question_ordinal-b.question_ordinal)
-        .map(r=>`<div class="row"><span>${esc(r.question)}</span><span class="vpill" style="background:${voiceColor(r.response_ordinal)}">${esc(r.response)}</span></div>`).join("");
-      return `<div class="domain card"><h3>${esc(s)}</h3><p class="cap">Self-reported clarity &amp; confidence &mdash; the learner's voice.</p>${rows}</div>`;
-    }).join("");
-    $("modal").innerHTML=`<button class="modal-close" data-close aria-label="Close">×</button>
-      <div class="modal-head">${avatarHtml(l,"modal-avatar")}
-        <div><div class="modal-title">${esc(learnerFullName(l))}</div><div class="modal-sub">Learner voice in context</div></div></div>
-      <div class="modal-body">
-        <p class="lineage" style="margin:0 0 10px">What the <b>learner reported</b> ${voiceContextScope(l)} &mdash; shown beside the concern, as a card per subject. This is <b>the learner's own view, not ARO IQ's derived interpretation</b>; it never feeds Academic Risk or any combined score (&sect;15).</p>
-        ${legend}<div style="display:flex;flex-direction:column;gap:12px">${cards}</div></div>`;
-    $("modal-bg").classList.add("open");
+      <button class="btn" data-goto="voice">Open the Learner voice tab &rarr;</button></div>`;
   }
   // Response & support context (Wave 3 / Suggestion 3): what support is recorded,
   // read beside the concern. Shows only what the governed evidence holds; fields the
@@ -1214,7 +1194,6 @@
     const asf=e.target.closest("[data-asmtfilter]"); if(asf){e.preventDefault();asmtState.filter=asf.dataset.asmtfilter;renderAsmtModal();return;}
     const asm=e.target.closest("[data-asmt]"); if(asm){e.preventDefault();openAssessmentModal(asm.dataset.asmtIdx!=null?+asm.dataset.asmtIdx:idx, asm.dataset.asmt);return;}
     const arh=e.target.closest("[data-arhelp]"); if(arh){e.preventDefault();openArHelp(idx);return;}
-    const vcx=e.target.closest("[data-vcontext]"); if(vcx){e.preventDefault();openVoiceContext(idx);return;}
     const sch=e.target.closest("[data-scheme]"); if(sch){e.preventDefault();saveScheme(sch.dataset.scheme);return;}
     const scc=e.target.closest("[data-scheme-custom]"); if(scc){e.preventDefault();const hx=(($("custom-hex")||{}).value||"").trim();if(/^#[0-9a-fA-F]{6}$/.test(hx))saveScheme("custom",hx);else adminMsg("Enter a colour like #2b2f39",true);return;}
     const acc=e.target.closest("[data-accent]"); if(acc){e.preventDefault();saveAccent(acc.dataset.accent);return;}
