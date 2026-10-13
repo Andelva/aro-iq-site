@@ -130,6 +130,11 @@
   .tr-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
   .tr-bar{width:100%;max-width:70px;border-radius:7px 7px 0 0;display:flex;align-items:flex-start;justify-content:center;color:#fff;font-weight:700;font-size:13px;padding-top:6px;min-height:22px}
   .tr-mon{font-size:12px;color:var(--muted);font-weight:600}
+  /* Full-year attendance grouped by term */
+  .tr-termwrap{display:flex;gap:18px;align-items:flex-end;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+  .tr-grp{display:flex;flex-direction:column;flex:0 0 auto}
+  .tr-grp .tr-chart{margin:14px 0 0}
+  .tr-glab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);text-align:center;border-top:2px solid #cdd9ea;padding-top:5px;margin-top:4px}
   .tr-delta{font-size:13px;font-weight:700;border-radius:999px;padding:4px 12px;display:inline-block}
   .tr-up{background:#eafaf1;color:#0f7a43} .tr-down{background:#fdeceb;color:#c0392b} .tr-flat{background:#eef1f6;color:var(--muted)}
   .cohort-filters select{font:inherit;font-size:12.5px;border:1px solid #ccd9ec;border-radius:8px;padding:6px 9px;background:#fff;color:var(--ink)}
@@ -793,25 +798,39 @@
       <div class="csum-card" style="flex:1 1 220px"><div class="k">Gender</div><div class="csum-chips">${genChips}</div></div>
     </div>`;
   }
-  // Cohort attendance trajectory over time (honest: from the governed monthly summaries).
-  // Attendance trajectory block (inner content; shares the cohort filter via `data`).
+  // Cohort attendance trajectory over time, broken into governed terms. A term
+  // selector (shared cohort term lens) scopes the chart; Full year shows every term
+  // grouped with a term label. Aggregated by (term, month) so straddle months split.
   function trendBlock(data){
-    const months=[], idxOf={};
-    data.forEach(({l})=>{ cohortMonths(l).forEach(m=>{ let o=idxOf[m.month]; if(o===undefined){ idxOf[m.month]=months.length; months.push({month:m.month,p:0,a:0,la:0}); o=idxOf[m.month]; } const e=months[o]; e.p+=m.present||0; e.a+=m.absent||0; e.la+=m.late||0; }); });
-    const series=months.map(o=>{const tot=o.p+o.a+o.la||1; return {month:o.month, pct:Math.round(o.p/tot*100), p:o.p,a:o.a,la:o.la,tot};});
+    const selTerm=cohortFilter.term, terms=allTerms(), hasTerms=terms.length>0;
+    const chips = hasTerms ? `<div class="att-filters" style="margin:0 0 12px">
+        <button class="att-fchip${!selTerm?" on":""}" data-coterm="">Full year</button>
+        ${terms.map(t=>`<button class="att-fchip${selTerm===t.code?" on":""}" data-coterm="${esc(t.code)}">${esc(shortTermName(t.code))}</button>`).join("")}
+      </div>` : "";
+    // Aggregate across the (filtered) cohort by term+month from the term breakdown.
+    const map={}, order=[];
+    data.forEach(({l})=>{ (l.attendance_by_term||[]).forEach(x=>{ if(selTerm && x.term_code!==selTerm) return;
+      const k=x.term_code+"|"+x.month; if(!(k in map)){ map[k]={term:x.term_code,month:x.month,p:0,a:0,la:0}; order.push(k);} const e=map[k]; e.p+=x.present||0; e.a+=x.absent||0; e.la+=x.late||0; }); });
+    let series;
+    if(order.length){ series=order.map(k=>{const o=map[k];const tot=o.p+o.a+o.la||1;return {term:o.term,month:o.month,pct:Math.round(o.p/tot*100),p:o.p,a:o.a,la:o.la,tot};}); }
+    else { const months=[],idxOf={}; data.forEach(({l})=>{(l.attendance_trend||[]).forEach(m=>{let o=idxOf[m.month];if(o===undefined){idxOf[m.month]=months.length;months.push({month:m.month,p:0,a:0,la:0});o=idxOf[m.month];}const e=months[o];e.p+=m.present||0;e.a+=m.absent||0;e.la+=m.late||0;});}); series=months.map(o=>{const tot=o.p+o.a+o.la||1;return {term:"",month:o.month,pct:Math.round(o.p/tot*100),p:o.p,a:o.a,la:o.la,tot};}); }
     const barColor=(p)=>p>=90?"#0f9d58":p>=80?"#e2760a":"#d93b34"; const H=150;
-    const chart=series.length
-      ? `<div class="tr-chart">${series.map(s=>`<div class="tr-col"><div class="tr-bar" style="height:${Math.max(22,Math.round(s.pct/100*H))}px;background:${barColor(s.pct)}" title="${esc(s.month)}: ${s.pct}% (${s.p} present of ${s.tot} sessions)">${s.pct}%</div><div class="tr-mon">${esc(s.month)}</div></div>`).join("")}</div>`
-      : `<div class="empty">No monthly attendance summary for this scope.</div>`;
+    const barHtml=(s)=>`<div class="tr-col"><div class="tr-bar" style="height:${Math.max(22,Math.round(s.pct/100*H))}px;background:${barColor(s.pct)}" title="${esc(shortTermName(s.term))} ${esc(s.month)}: ${s.pct}% (${s.p} present of ${s.tot} sessions)">${s.pct}%</div><div class="tr-mon">${esc(s.month)}</div></div>`;
+    let chart;
+    if(!series.length){ chart=`<div class="empty">No monthly attendance summary for this scope.</div>`; }
+    else if(!selTerm && series.some(s=>s.term)){
+      const groups=[]; series.forEach(s=>{ let g=groups.length?groups[groups.length-1]:null; if(!g||g.term!==s.term){ g={term:s.term,items:[]}; groups.push(g); } g.items.push(s); });
+      chart=`<div class="tr-termwrap">${groups.map(g=>`<div class="tr-grp"><div class="tr-chart">${g.items.map(barHtml).join("")}</div><div class="tr-glab">${esc(shortTermName(g.term))}</div></div>`).join("")}</div>`;
+    } else { chart=`<div class="tr-chart">${series.map(barHtml).join("")}</div>`; }
     let delta="";
     if(series.length>=2){ const a=series[0], b=series[series.length-1], d=b.pct-a.pct, cls=d>0?"tr-up":d<0?"tr-down":"tr-flat", arr=d>0?"&#9650;":d<0?"&#9660;":"&#9632;"; delta=`<span class="tr-delta ${cls}">${esc(a.month)} ${a.pct}% &rarr; ${esc(b.month)} ${b.pct}% &middot; ${arr} ${Math.abs(d)} pts</span>`; }
-    const rows=series.map(s=>`<tr><td><b>${esc(s.month)}</b></td><td><span style="font-weight:700;color:${barColor(s.pct)}">${s.pct}%</span></td><td>${s.p}</td><td>${s.la}</td><td>${s.a}</td><td>${s.tot}</td></tr>`).join("");
-    const scopeNote=`${data.length}${data.length!==ARO_DATA.length?" of "+ARO_DATA.length:""} learner${data.length===1?"":"s"} in scope &middot; each month = present sessions / all recorded sessions.`;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 4px"><span class="lineage" style="margin:0">${scopeNote}</span>${delta}</div>
+    const rows=series.map(s=>`<tr><td>${s.term?esc(shortTermName(s.term)):"&mdash;"}</td><td><b>${esc(s.month)}</b></td><td><span style="font-weight:700;color:${barColor(s.pct)}">${s.pct}%</span></td><td>${s.p}</td><td>${s.la}</td><td>${s.a}</td><td>${s.tot}</td></tr>`).join("");
+    const scopeNote=`${data.length}${data.length!==ARO_DATA.length?" of "+ARO_DATA.length:""} learner${data.length===1?"":"s"} in scope &middot; ${selTerm?esc(shortTermName(selTerm)):"full year, split by term"} &middot; each month = present sessions / all recorded sessions.`;
+    return `${chips}<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 4px"><span class="lineage" style="margin:0">${scopeNote}</span>${delta}</div>
       ${chart}
       <div class="legend"><span><span class="sw" style="background:#0f9d58"></span>&ge; 90%</span><span><span class="sw" style="background:#e2760a"></span>80&ndash;89%</span><span><span class="sw" style="background:#d93b34"></span>&lt; 80%</span></div>
-      <table class="ctable" style="margin-top:14px"><thead><tr><th>Month</th><th>Attendance</th><th>Present</th><th>Late</th><th>Absent</th><th>Sessions</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty" style="padding:16px">No data.</td></tr>`}</tbody></table>
-      <p class="lineage" style="margin-top:12px">From the governed <code>reporting.attendance_summary</code> (monthly), aggregated across your RLS-scoped, filtered cohort &mdash; not a combined score. <b>Longitudinal Academic-Risk and assessment trends</b> need multiple term snapshots and will appear here as governed calculation runs accumulate over time; they are never fabricated from a single point.</p>`;
+      <table class="ctable" style="margin-top:14px"><thead><tr><th>Term</th><th>Month</th><th>Attendance</th><th>Present</th><th>Late</th><th>Absent</th><th>Sessions</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty" style="padding:16px">No data.</td></tr>`}</tbody></table>
+      <p class="lineage" style="margin-top:12px">From the governed <code>reporting.attendance_summary_term</code> (Student &times; term &times; month), aggregated across your RLS-scoped, filtered cohort &mdash; not a combined score. Use the term selector to focus a single term; Full year splits straddle months (e.g. April) across their terms.</p>`;
   }
   function renderCohort(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
@@ -1271,6 +1290,7 @@
     const atm=e.target.closest("[data-attterm]"); if(atm){e.preventDefault();attTerm=atm.dataset.attterm;lmTab="attendance";renderLearnerModal();const lb=$("lmodal-body");if(lb)lb.scrollTop=0;return;}
     const st=e.target.closest("[data-star-band]"); if(st){e.preventDefault();openStarModal(st.dataset.starIdx!=null?+st.dataset.starIdx:idx, st.dataset.starTerm||"");return;}
     const so=e.target.closest("[data-sort]"); if(so){e.preventDefault();const k=so.dataset.sort;if(cohortSort.key===k)cohortSort.dir=-cohortSort.dir;else{cohortSort.key=k;cohortSort.dir=1;}render();return;}
+    const cot=e.target.closest("[data-coterm]"); if(cot){e.preventDefault();cohortFilter.term=cot.dataset.coterm;render();return;}
     const cfc=e.target.closest("[data-cfilter-clear]"); if(cfc){e.preventDefault();cohortFilter={year:"",gender:"",ethnicity:"",cls:"",teacher:"",risk:"",star:"",term:""};fillPicker();render();return;}
     const ex=e.target.closest("[data-export]"); if(ex){e.preventDefault();exportCohort();return;}
     const pr=e.target.closest("[data-print]"); if(pr){e.preventDefault();window.print();return;}
