@@ -313,8 +313,8 @@
       <button data-view="cohort" aria-pressed="true">Cohort Summary</button>
       <button data-view="cohhist" id="nav-cohhist" aria-pressed="false" hidden>Cohort history</button>
       <button data-view="students" aria-pressed="false">Cohort view</button>
-      <button data-view="coverage" aria-pressed="false">Source coverage</button>
-      <button data-view="trust" aria-pressed="false">Trust &amp; evidence</button>
+      <button data-view="coverage" id="nav-coverage" aria-pressed="false" hidden>Source coverage</button>
+      <button data-view="trust" id="nav-trust" aria-pressed="false" hidden>Trust &amp; evidence</button>
       <button data-view="admin" id="nav-admin" class="admin-item" aria-pressed="false" hidden>Admin · Branding</button>
       <button data-view="access" id="nav-access" aria-pressed="false" hidden>Admin · Access</button>
     </nav>
@@ -1186,7 +1186,7 @@
   function openAssessmentModal(i, filter){ asmtState={idx:+i, filter:filter||"All"}; renderAsmtModal(); }
 
   function render(){
-    if((view==="admin"||view==="access") && !isAdminPersona()) view="cohort";   // admin views are role-gated
+    if((view==="admin"||view==="access"||view==="coverage"||view==="trust") && !isAdminPersona()) view="cohort";   // admin-only views are role-gated
     if(view==="cohhist" && !isLeadershipPersona()) view="cohort";                 // leadership-only (admin/principal)
     const l=ARO_DATA[idx], [crumb,title,sub]=TITLES[view];
     const learnerScoped=(view==="learner"||view==="journey"||view==="attendance"||view==="voice");
@@ -1404,7 +1404,7 @@
     applyBranding(); adminMsg("Logo reset to default");
     if(view==="admin") render();
   }
-  function updateAdminVisibility(){ const b=$("nav-admin"); if(b) b.hidden=!isAdminPersona(); const b2=$("nav-access"); if(b2) b2.hidden=!isAdminPersona(); if((view==="admin"||view==="access")&&!isAdminPersona()) view="cohort"; const b3=$("nav-cohhist"); if(b3) b3.hidden=!isLeadershipPersona(); if(view==="cohhist"&&!isLeadershipPersona()) view="cohort"; }
+  function updateAdminVisibility(){ const b=$("nav-admin"); if(b) b.hidden=!isAdminPersona(); const b2=$("nav-access"); if(b2) b2.hidden=!isAdminPersona(); const bc=$("nav-coverage"); if(bc) bc.hidden=!isAdminPersona(); const bt=$("nav-trust"); if(bt) bt.hidden=!isAdminPersona(); if((view==="admin"||view==="access"||view==="coverage"||view==="trust")&&!isAdminPersona()) view="cohort"; const b3=$("nav-cohhist"); if(b3) b3.hidden=!isLeadershipPersona(); if(view==="cohhist"&&!isLeadershipPersona()) view="cohort"; }
   function renderAdmin(){
     if(!isAdminPersona()) return `<div class="adm-denied"><b>Administrator only.</b> Branding is managed by the Administrator role — switch to the Administrator view to change the logo and sidebar theme.</div>`;
     const curLogo = branding.logo ? branding.logo : ((LIVE && branding.hasLogo) ? ("/api/branding/logo?v="+(branding.v||Date.now())) : DEFAULT_LOGO);
