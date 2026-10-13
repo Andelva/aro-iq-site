@@ -138,19 +138,6 @@
   .tr-delta{font-size:13px;font-weight:700;border-radius:999px;padding:4px 12px;display:inline-block}
   .tr-up{background:#eafaf1;color:#0f7a43} .tr-down{background:#fdeceb;color:#c0392b} .tr-flat{background:#eef1f6;color:var(--muted)}
   .cohort-filters select{font:inherit;font-size:12.5px;border:1px solid #ccd9ec;border-radius:8px;padding:6px 9px;background:#fff;color:var(--ink)}
-  /* Visual (chip) cohort filters */
-  .facet-grp{display:flex;gap:14px;align-items:baseline;padding:9px 0;border-top:1px solid #eef1f6}
-  .facet-grp:first-of-type{border-top:0}
-  .facet-lab{flex:0 0 136px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-top:5px}
-  .facet-chips{display:flex;gap:7px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
-  .facet-chip{border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;border-radius:999px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:background .12s,border-color .12s,color .12s}
-  .facet-chip:hover{border-color:#9fc0ee;background:#f3f6fb}
-  .facet-chip.on{background:var(--side-accent);color:var(--side-accent-ink);border-color:var(--side-accent)}
-  .facet-chip.color:not(.on){border-left:4px solid var(--fc)}
-  .facet-chip.color.on{background:var(--fc);border-color:var(--fc);color:#fff}
-  .facet-n{font-size:11px;font-weight:700;background:#eef1f6;color:#5b6b82;border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
-  .facet-chip.on .facet-n{background:rgba(255,255,255,.22);color:#fff}
-  @media(max-width:560px){.facet-grp{flex-direction:column;gap:6px}.facet-lab{flex:none}}
   .trust-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .trust h3{margin:0 0 6px;font-size:15px} .trust p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
   .scope-note{background:#f1eeff;border:1px solid #e0d6ff;border-radius:12px;padding:16px;color:#5b34c0;font-size:13px;line-height:1.55}
@@ -845,57 +832,12 @@
       <table class="ctable" style="margin-top:14px"><thead><tr><th>Term</th><th>Month</th><th>Attendance</th><th>Present</th><th>Late</th><th>Absent</th><th>Sessions</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty" style="padding:16px">No data.</td></tr>`}</tbody></table>
       <p class="lineage" style="margin-top:12px">From the governed <code>reporting.attendance_summary_term</code> (Student &times; term &times; month), aggregated across your RLS-scoped, filtered cohort &mdash; not a combined score. Use the term selector to focus a single term; Full year splits straddle months (e.g. April) across their terms.</p>`;
   }
-  // Rows matching every active cohort filter EXCEPT one dimension — so each facet's
-  // counts show how many learners each value WOULD give (standard faceted counts).
-  function facetRows(except){
-    let out=ARO_DATA.map((l,i)=>({l,i})); const f=cohortFilter;
-    if(f.year && except!=="year") out=out.filter(r=>String(r.l.year_level)===f.year);
-    if(f.gender && except!=="gender") out=out.filter(r=>((r.l.detail||{}).gender||"")===f.gender);
-    if(f.ethnicity && except!=="ethnicity") out=out.filter(r=>((r.l.detail||{}).ethnicity||"")===f.ethnicity);
-    if(f.cls && except!=="cls") out=out.filter(r=>(r.l.teaching_groups||[]).some(g=>g.name===f.cls));
-    if(f.teacher && except!=="teacher") out=out.filter(r=>(r.l.teaching_groups||[]).some(g=>g.teacher===f.teacher));
-    if(f.risk && except!=="risk") out=out.filter(r=>{const ar=r.l.academic_risk||{};return (ar.derivation_status==="Derived"?ar.academic_risk:"Not Derived")===f.risk;});
-    if(f.star && except!=="star") out=out.filter(r=>{const b=starBandOf(cohortStar(r.l));return b?String(b.no)===f.star:false;});
-    return out;
-  }
-  // Visual, selectable filters (chips with live counts) — mirror the dropdowns.
-  function facetPanel(){
-    const cur=(k)=>cohortFilter[k];
-    const countBy=(rows,fn)=>{const c={};rows.forEach(({l})=>{const vs=fn(l);(Array.isArray(vs)?vs:[vs]).forEach(v=>{if(v!=null&&v!=="")c[v]=(c[v]||0)+1;});});return c;};
-    const chip=(label,active,facet,val,color,count)=>`<button class="facet-chip${active?" on":""}${color?" color":""}"${color?` style="--fc:${color}"`:""} data-facet="${esc(facet)}" data-facetval="${esc(val)}">${esc(label)}${count!=null?` <span class="facet-n">${count}</span>`:""}</button>`;
-    const group=(label,facet,chipsHtml)=>`<div class="facet-grp"><div class="facet-lab">${esc(label)}</div><div class="facet-chips">${chip("All",!cur(facet),facet,"",null,null)}${chipsHtml}</div></div>`;
-    const years=[...new Set(ARO_DATA.map(l=>l.year_level).filter(Boolean))].sort((a,b)=>(parseInt(String(a).replace(/\D/g,""))||0)-(parseInt(String(b).replace(/\D/g,""))||0));
-    const yc=countBy(facetRows("year"),l=>l.year_level);
-    const genders=[...new Set(ARO_DATA.map(l=>(l.detail||{}).gender).filter(Boolean))].sort(); const gc=countBy(facetRows("gender"),l=>(l.detail||{}).gender);
-    const eths=[...new Set(ARO_DATA.map(l=>(l.detail||{}).ethnicity).filter(Boolean))].sort(); const ec=countBy(facetRows("ethnicity"),l=>(l.detail||{}).ethnicity);
-    const rc=countBy(facetRows("risk"),l=>{const ar=l.academic_risk||{};return ar.derivation_status==="Derived"?ar.academic_risk:"Not Derived";});
-    const sc=countBy(facetRows("star"),l=>{const b=starBandOf(cohortStar(l));return b?String(b.no):null;});
-    const riskVals=[["Low","#0f9d58"],["Moderate","#e2760a"],["High","#d93b34"],["Not Derived","#8894a2"]];
-    const terms=allTerms();
-    const yearChips=years.map(y=>chip(y,cur("year")===String(y),"year",String(y),null,yc[y]||0)).join("");
-    const genderChips=genders.map(g=>chip(g,cur("gender")===g,"gender",g,null,gc[g]||0)).join("");
-    const ethChips=eths.map(x=>chip(x,cur("ethnicity")===x,"ethnicity",x,null,ec[x]||0)).join("");
-    const riskChips=riskVals.map(([v,c])=>chip(v,cur("risk")===v,"risk",v,c,rc[v]||0)).join("");
-    const starChips=STAR_BANDS.map(b=>chip(b.label.replace(" attendance",""),cur("star")===String(b.no),"star",String(b.no),b.color,sc[String(b.no)]||0)).join("");
-    const termChips=terms.map(t=>chip(shortTermName(t.code),cur("term")===t.code,"term",t.code,null,null)).join("");
-    const anyF=cohortFilter.year||cohortFilter.gender||cohortFilter.ethnicity||cohortFilter.cls||cohortFilter.teacher||cohortFilter.risk||cohortFilter.star||cohortFilter.term;
-    return `<div class="card" style="margin-top:14px"><h2 class="sec">Filter the cohort</h2>
-      <p class="lineage" style="margin:0 0 10px">Click a value to filter; counts update as you narrow, and these stay in sync with the dropdowns above. <b>Class</b> and <b>Teacher</b> remain in the dropdowns.${anyF?` <a class="clickable" data-cfilter-clear role="button" tabindex="0">Clear all</a>`:""}</p>
-      ${group("Year level","year",yearChips)}
-      ${group("Gender","gender",genderChips)}
-      ${group("Ethnicity","ethnicity",ethChips)}
-      ${group("Academic Risk","risk",riskChips)}
-      ${group("STAR band","star",starChips)}
-      ${terms.length?group("Term (attendance)","term",termChips):""}
-    </div>`;
-  }
   function renderCohort(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
     const data=cohortRows(), ctl=cohortControls();
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
-      ${facetPanel()}
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
@@ -1348,7 +1290,6 @@
     const atm=e.target.closest("[data-attterm]"); if(atm){e.preventDefault();attTerm=atm.dataset.attterm;lmTab="attendance";renderLearnerModal();const lb=$("lmodal-body");if(lb)lb.scrollTop=0;return;}
     const st=e.target.closest("[data-star-band]"); if(st){e.preventDefault();openStarModal(st.dataset.starIdx!=null?+st.dataset.starIdx:idx, st.dataset.starTerm||"");return;}
     const so=e.target.closest("[data-sort]"); if(so){e.preventDefault();const k=so.dataset.sort;if(cohortSort.key===k)cohortSort.dir=-cohortSort.dir;else{cohortSort.key=k;cohortSort.dir=1;}render();return;}
-    const fct=e.target.closest("[data-facet]"); if(fct){e.preventDefault();cohortFilter[fct.dataset.facet]=fct.dataset.facetval;fillPicker();render();return;}
     const cot=e.target.closest("[data-coterm]"); if(cot){e.preventDefault();cohortFilter.term=cot.dataset.coterm;render();return;}
     const cfc=e.target.closest("[data-cfilter-clear]"); if(cfc){e.preventDefault();cohortFilter={year:"",gender:"",ethnicity:"",cls:"",teacher:"",risk:"",star:"",term:""};fillPicker();render();return;}
     const ex=e.target.closest("[data-export]"); if(ex){e.preventDefault();exportCohort();return;}
