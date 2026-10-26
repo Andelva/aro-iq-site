@@ -868,11 +868,34 @@
   // attendance band). Coloured count chips + a single stacked proportion bar.
   // segs: [{label, n, color}] in display order. Zero-count segments are dropped
   // from the bar but still shown as a chip so the category is visible.
-  function distBlock(segs){
+  // Per-card choice of Bar (stacked) or Pie (donut) view for distribution cards.
+  let distViews={};
+  // Donut for a parts-of-a-whole distribution: few status categories summing to the
+  // cohort, 2px gaps between slices, per-slice hover title, cohort total in the hole.
+  // The coloured chips below carry the labels, so identity is never colour-alone.
+  function donutSvg(segs,tot){
+    const R=52, C=2*Math.PI*R, cx=60, cy=60, sw=18;
+    let off=0;
+    const arcs=segs.filter(s=>s.n).map(s=>{
+      const len=s.n/tot*C, gap=Math.min(len,2), draw=Math.max(len-gap,0.01);
+      const el=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${draw.toFixed(2)} ${(C-draw).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"><title>${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)</title></circle>`;
+      off+=len; return el;
+    }).join("");
+    return `<svg viewBox="0 0 120 120" width="148" height="148" role="img" aria-label="Distribution donut; see the labelled legend" style="flex:0 0 auto">${arcs}<text x="60" y="57" text-anchor="middle" font-size="22" font-weight="800" fill="var(--ink)">${tot}</text><text x="60" y="73" text-anchor="middle" font-size="8.5" letter-spacing=".08em" fill="var(--muted)">LEARNERS</text></svg>`;
+  }
+  function distBlock(segs,key){
     const tot=segs.reduce((s,x)=>s+x.n,0)||1;
+    const view=distViews[key]||"bar";
+    const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="${esc(key)}">Bar</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="${esc(key)}">Pie</button></div>`;
     const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
-    const bar=`<div class="asmt-bar" style="max-width:none;width:100%;height:16px;margin-top:10px">${segs.map(s=>s.n?`<span title="${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)" style="flex:${s.n};background:${s.color}"></span>`:"").join("")}</div>`;
-    return `<div class="csum-chips">${chips}</div>${bar}`;
+    let body;
+    if(view==="pie"){
+      body=`<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">${donutSvg(segs,tot)}<div class="csum-chips" style="flex:1 1 180px">${chips}</div></div>`;
+    } else {
+      const bar=`<div class="asmt-bar" style="max-width:none;width:100%;height:16px;margin-top:10px">${segs.map(s=>s.n?`<span title="${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)" style="flex:${s.n};background:${s.color}"></span>`:"").join("")}</div>`;
+      body=`<div class="csum-chips">${chips}</div>${bar}`;
+    }
+    return `${toggle}${body}`;
   }
   // Learning Position distribution (#2): the assessment analog of the STAR attendance
   // bands. Uses each learner's governed learning_position (most-severe subject) that
@@ -886,7 +909,7 @@
     if(nd) segs.push({label:"Not Derived",n:nd,color:"#8794a3"});
     return `<div class="card" style="margin-top:14px"><h2 class="sec">Learning position &mdash; where the cohort sits</h2>
       <p class="lineage" style="margin:0 0 10px">How far learners sit from curriculum expectation &mdash; <b>Secure</b> (at the expected level), <b>Developing</b> (approaching it), <b>Emerging</b> (below it). Taken as each learner's <b>most-severe subject</b>, the same governed position that feeds Academic Risk (BR-AR-004). The assessment analog of the STAR attendance bands &mdash; an <b>independent</b> distribution, never a combined score. Per-subject achievement is in the card above.</p>
-      ${distBlock(segs)}</div>`;
+      ${distBlock(segs,"lp")}</div>`;
   }
   // Attendance band split (#5): REGULAR / WATCH / AT-RISK across the cohort, the full
   // attention-band distribution behind the "regular attendees %" headline. Independent
@@ -899,7 +922,7 @@
     if(none) segs.push({label:"No band",n:none,color:"#8794a3"});
     return `<div class="card" style="margin-top:14px"><h2 class="sec">Attendance band split</h2>
       <p class="lineage" style="margin:0 0 10px">The attention band for every learner in scope &mdash; <b>Regular</b> (&ge;90%), <b>Watch</b>, <b>At-risk</b> &mdash; the full picture behind the regular-attendees headline. From Attendance Intelligence (governed <code>reporting.attendance_*</code>). An <b>independent</b> signal: attendance can escalate Academic Risk by one step but never produces High on its own.</p>
-      ${distBlock(segs)}</div>`;
+      ${distBlock(segs,"attband")}</div>`;
   }
   // Equity lens: achievement, attendance and share at risk by ethnicity / gender,
   // ranked so gaps are visible. Independent signals, never a combined score; small
@@ -1410,6 +1433,7 @@
     const so=e.target.closest("[data-sort]"); if(so){e.preventDefault();const k=so.dataset.sort;if(cohortSort.key===k)cohortSort.dir=-cohortSort.dir;else{cohortSort.key=k;cohortSort.dir=1;}render();return;}
     const cot=e.target.closest("[data-coterm]"); if(cot){e.preventDefault();cohortFilter.term=cot.dataset.coterm;render();return;}
     const eq=e.target.closest("[data-equity]"); if(eq){e.preventDefault();equityDim=eq.dataset.equity;render();return;}
+    const dvw=e.target.closest("[data-distview]"); if(dvw){e.preventDefault();distViews[dvw.dataset.distkey]=dvw.dataset.distview;render();return;}
     const cfc=e.target.closest("[data-cfilter-clear]"); if(cfc){e.preventDefault();cohortFilter={year:"",gender:"",ethnicity:"",cls:"",teacher:"",risk:"",star:"",term:""};fillPicker();render();return;}
     const ex=e.target.closest("[data-export]"); if(ex){e.preventDefault();exportCohort();return;}
     const pr=e.target.closest("[data-print]"); if(pr){e.preventDefault();window.print();return;}
