@@ -887,7 +887,7 @@
   // cohort, 2px gaps between slices, per-slice hover title, cohort total in the hole.
   // The coloured chips below carry the labels, so identity is never colour-alone.
   function donutSvg(segs,tot){
-    const R=52, C=2*Math.PI*R, cx=60, cy=60, sw=18;
+    const R=47, C=2*Math.PI*R, cx=60, cy=60, sw=16;
     let off=0;
     const arcs=segs.filter(s=>s.n).map(s=>{
       const len=s.n/tot*C, gap=Math.min(len,2), draw=Math.max(len-gap,0.01);
