@@ -864,6 +864,43 @@
       <p class="lineage" style="margin:0 0 10px">How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. Small groups are suppressed.</p>
       <table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
+  // Shared proportion renderer for cohort distribution cards (learning position,
+  // attendance band). Coloured count chips + a single stacked proportion bar.
+  // segs: [{label, n, color}] in display order. Zero-count segments are dropped
+  // from the bar but still shown as a chip so the category is visible.
+  function distBlock(segs){
+    const tot=segs.reduce((s,x)=>s+x.n,0)||1;
+    const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
+    const bar=`<div class="asmt-bar" style="max-width:none;width:100%;height:16px;margin-top:10px">${segs.map(s=>s.n?`<span title="${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)" style="flex:${s.n};background:${s.color}"></span>`:"").join("")}</div>`;
+    return `<div class="csum-chips">${chips}</div>${bar}`;
+  }
+  // Learning Position distribution (#2): the assessment analog of the STAR attendance
+  // bands. Uses each learner's governed learning_position (most-severe subject) that
+  // feeds Academic Risk (BR-AR-004). Independent distribution, never a combined score.
+  function learningPositionCard(data){
+    const c={Secure:0,Developing:0,Emerging:0}; let nd=0;
+    data.forEach(({l})=>{ const ar=l.academic_risk||{};
+      if(ar.derivation_status==="Derived" && ar.learning_position in c) c[ar.learning_position]++; else nd++; });
+    if(!data.length) return "";
+    const segs=[{label:"Secure",n:c.Secure,color:"#0f9d58"},{label:"Developing",n:c.Developing,color:"#e2760a"},{label:"Emerging",n:c.Emerging,color:"#d93b34"}];
+    if(nd) segs.push({label:"Not Derived",n:nd,color:"#8794a3"});
+    return `<div class="card" style="margin-top:14px"><h2 class="sec">Learning position &mdash; where the cohort sits</h2>
+      <p class="lineage" style="margin:0 0 10px">How far learners sit from curriculum expectation &mdash; <b>Secure</b> (at the expected level), <b>Developing</b> (approaching it), <b>Emerging</b> (below it). Taken as each learner's <b>most-severe subject</b>, the same governed position that feeds Academic Risk (BR-AR-004). The assessment analog of the STAR attendance bands &mdash; an <b>independent</b> distribution, never a combined score. Per-subject achievement is in the card above.</p>
+      ${distBlock(segs)}</div>`;
+  }
+  // Attendance band split (#5): REGULAR / WATCH / AT-RISK across the cohort, the full
+  // attention-band distribution behind the "regular attendees %" headline. Independent
+  // signal; it never produces High academic risk on its own (attendance is the ceiling).
+  function attendanceBandCard(data){
+    const c={REGULAR:0,WATCH:0,AT_RISK:0}; let none=0;
+    data.forEach(({l})=>{ const b=(l.attendance||{}).band; if(b in c) c[b]++; else none++; });
+    if(!data.length) return "";
+    const segs=[{label:"Regular",n:c.REGULAR,color:"#0f9d58"},{label:"Watch",n:c.WATCH,color:"#e2760a"},{label:"At-risk",n:c.AT_RISK,color:"#d93b34"}];
+    if(none) segs.push({label:"No band",n:none,color:"#8794a3"});
+    return `<div class="card" style="margin-top:14px"><h2 class="sec">Attendance band split</h2>
+      <p class="lineage" style="margin:0 0 10px">The attention band for every learner in scope &mdash; <b>Regular</b> (&ge;90%), <b>Watch</b>, <b>At-risk</b> &mdash; the full picture behind the regular-attendees headline. From Attendance Intelligence (governed <code>reporting.attendance_*</code>). An <b>independent</b> signal: attendance can escalate Academic Risk by one step but never produces High on its own.</p>
+      ${distBlock(segs)}</div>`;
+  }
   // Equity lens: achievement, attendance and share at risk by ethnicity / gender,
   // ranked so gaps are visible. Independent signals, never a combined score; small
   // groups suppressed (shown, not guessed). Respects the cohort filter.
@@ -910,7 +947,9 @@
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
       ${cohortAssessment(data)}
+      ${learningPositionCard(data)}
       ${equityCard(data)}
+      ${attendanceBandCard(data)}
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
