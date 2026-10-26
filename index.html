@@ -125,6 +125,8 @@
   .csum-card .v{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:3px}
   .csum-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
   .csum-chip{font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;background:#eef1f6;color:var(--ink)}
+  .asmt-bar{display:flex;height:11px;min-width:90px;max-width:170px;border-radius:6px;overflow:hidden;background:#eef1f6}
+  .asmt-bar span{display:block}
   /* Trends (cohort attendance over time) */
   .tr-chart{display:flex;gap:14px;align-items:flex-end;height:190px;margin:14px 0 4px;padding:8px 2px 0;border-bottom:1px solid var(--line)}
   .tr-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
@@ -776,25 +778,26 @@
   function cohortSummary(data){
     const n=data.length;
     let pres=0, sess=0, rateSum=0, rateN=0;
-    const band={1:0,2:0,3:0,4:0}, gen={}; let riskD=0, riskND=0, starAvail=0, regCount=0, attWith=0, asAt="";
+    const band={1:0,2:0,3:0,4:0}, gen={}, rb={}; let riskD=0, riskND=0, starAvail=0, regCount=0, attWith=0, asAt="";
     data.forEach(({l})=>{
       const at=l.attendance||{}; if(at.rate!=null){rateSum+=at.rate; rateN++;}
       cohortMonths(l).forEach(m=>{const p=m.present||0,a=m.absent||0,la=m.late||0; pres+=p; sess+=p+a+la;});
       const b=starBandOf(cohortStar(l)); if(b){ band[b.no]=(band[b.no]||0)+1; starAvail++; }
-      const ar=l.academic_risk||{}; if(ar.derivation_status==="Derived") riskD++; else riskND++;
+      const ar=l.academic_risk||{}; if(ar.derivation_status==="Derived"){ riskD++; rb[ar.academic_risk]=(rb[ar.academic_risk]||0)+1; } else riskND++;
       const ab=(l.attendance||{}).band; if(ab){ attWith++; if(ab==="REGULAR") regCount++; }
       if(ar.intelligence_date && ar.intelligence_date>asAt) asAt=ar.intelligence_date;
       const g=(l.detail||{}).gender||"—"; gen[g]=(gen[g]||0)+1;
     });
     const attPct = sess>0 ? Math.round(pres/sess*100) : (rateN? Math.round(rateSum/rateN*100) : null);
     const starChips=STAR_BANDS.map(b=>`<span class="csum-chip" style="background:${b.color};color:#fff">${esc(b.label.replace(" attendance",""))}: <b>${band[b.no]||0}</b></span>`).join("")+((n-starAvail)>0?`<span class="csum-chip" style="background:#e9edf2;color:#5b6b82" title="STAR not available for these learners">Unavailable: <b>${n-starAvail}</b></span>`:"");
+    const riskChips=[["Low","#0f9d58"],["Moderate","#e2760a"],["High","#d93b34"]].map(([v,c])=>`<span class="csum-chip" style="background:${c};color:#fff">${esc(v)}: <b>${rb[v]||0}</b></span>`).join("")+(riskND?`<span class="csum-chip" style="background:#eef1f5;color:#5b6b82" title="Insufficient intelligence — a status, never Low">Not Derived: <b>${riskND}</b></span>`:"");
     const genChips=Object.keys(gen).sort().map(g=>`<span class="csum-chip">${esc(g)}: <b>${gen[g]}</b></span>`).join("")||`<span class="csum-chip">—</span>`;
     return `<div class="csum">
       <div class="csum-card"><div class="k">Students</div><div class="v">${n}</div></div>
       <div class="csum-card"><div class="k">Regular attendees</div><div class="v">${attWith?Math.round(regCount/attWith*100)+"%":"n/a"}</div>${asAt?`<div class="k" style="font-weight:400;margin-top:2px">data as at ${esc(asAt)}</div>`:""}</div>
       <div class="csum-card"><div class="k">Cohort attendance</div><div class="v">${attPct!=null?attPct+"%":"—"}</div></div>
       <div class="csum-card" style="flex:1 1 260px"><div class="k">STAR bands (days absent)</div><div class="csum-chips">${starChips}</div></div>
-      <div class="csum-card" style="flex:1 1 240px"><div class="k">Evidence availability</div><div class="csum-chips"><span class="csum-chip" style="background:#e7f4ec;color:#15803d">Risk derived: <b>${riskD}</b></span><span class="csum-chip" style="background:#eef1f5;color:#5b6b82" title="Insufficient intelligence - a status, never Low">Not Derived: <b>${riskND}</b></span></div></div>
+      <div class="csum-card" style="flex:1 1 280px"><div class="k">Academic Risk</div><div class="csum-chips">${riskChips}</div></div>
       <div class="csum-card" style="flex:1 1 220px"><div class="k">Gender</div><div class="csum-chips">${genChips}</div></div>
     </div>`;
   }
@@ -832,12 +835,42 @@
       <table class="ctable" style="margin-top:14px"><thead><tr><th>Term</th><th>Month</th><th>Attendance</th><th>Present</th><th>Late</th><th>Absent</th><th>Sessions</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty" style="padding:16px">No data.</td></tr>`}</tbody></table>
       <p class="lineage" style="margin-top:12px">From the governed <code>reporting.attendance_summary_term</code> (Student &times; term &times; month), aggregated across your RLS-scoped, filtered cohort &mdash; not a combined score. Use the term selector to focus a single term; Full year splits straddle months (e.g. April) across their terms.</p>`;
   }
+  // Assessment achievement + progress per curriculum subject, for the filtered cohort.
+  // Independent domain view (NOT a combined score). Cognitive tests are excluded (they
+  // never set curriculum expectation). Small cohorts are suppressed (BR-HIS-006 style).
+  function cohortAssessment(data){
+    const ORDER=["Mathematics","English","Science"], MINPOP=6, subs={};
+    data.forEach(({l})=>{(l.assessment||[]).forEach(a=>{
+      if(/cognitive/i.test(a.learning_area||"")) return;
+      const o=subs[a.subject]=subs[a.subject]||{n:0,below:0,atAbove:0,improving:0,declining:0,steady:0};
+      o.n++;
+      if(a.band==="Below") o.below++; else if(a.band==="At"||a.band==="Above") o.atAbove++;
+      const p=(a.progress||"").toLowerCase();
+      if(p.startsWith("improv")) o.improving++; else if(p.startsWith("declin")) o.declining++; else if(p) o.steady++;
+    });});
+    const subjects=Object.keys(subs).sort((a,b)=>{const ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);});
+    if(!subjects.length) return "";
+    const rows=subjects.map(s=>{const o=subs[s];
+      if(o.n<MINPOP) return `<tr><td><b>${esc(s)}</b> <span class="lineage" style="font-size:11px">n=${o.n}</span></td><td colspan="3" class="empty" style="padding:8px 2px">Too few learners to show (suppressed).</td></tr>`;
+      const atPct=Math.round(o.atAbove/o.n*100), belPct=Math.round(o.below/o.n*100);
+      const bar=`<div class="asmt-bar" title="${o.atAbove} at/above · ${o.below} below"><span style="flex:${o.atAbove||0.0001};background:var(--green)"></span><span style="flex:${o.below||0.0001};background:var(--red)"></span></div>`;
+      return `<tr>
+        <td><b>${esc(s)}</b> <span class="lineage" style="font-size:11px">n=${o.n}</span></td>
+        <td>${bar}</td>
+        <td><span style="color:var(--green);font-weight:700">${atPct}%</span> at/above &middot; <span style="color:var(--red);font-weight:700">${belPct}%</span> below</td>
+        <td><span class="prog up">&#9650; ${o.improving}</span> &nbsp; <span class="prog down">&#9660; ${o.declining}</span>${o.steady?` &nbsp; <span class="prog flat">&#9632; ${o.steady}</span>`:""}</td>
+      </tr>`;}).join("");
+    return `<div class="card" style="margin-top:14px"><h2 class="sec">Assessment &mdash; achievement &amp; progress</h2>
+      <p class="lineage" style="margin:0 0 10px">How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. Small groups are suppressed.</p>
+      <table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
   function renderCohort(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
     const data=cohortRows(), ctl=cohortControls();
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
+      ${cohortAssessment(data)}
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
