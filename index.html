@@ -76,6 +76,14 @@
   .chip .k{color:var(--muted);font-weight:600;font-size:11px;display:block;text-transform:uppercase;letter-spacing:.05em}
   .arrow{color:var(--muted);font-weight:700}
   .lineage{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5}
+  /* Side-by-side distribution cards (learning position / risk / STAR / attendance band). */
+  .distgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px;margin-top:14px;align-items:start}
+  /* Hover "i" affordance that carries a section's explanatory text instead of printing it. */
+  .info{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--side-ink);font-size:11px;font-weight:700;font-style:italic;cursor:help;flex:0 0 auto;user-select:none}
+  .info:hover,.info:focus-visible{background:rgba(255,255,255,.42);outline:none}
+  .info .tip{display:none;position:absolute;right:0;top:calc(100% + 10px);width:min(340px,78vw);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px rgba(43,47,57,.24);padding:11px 13px;font-size:12px;font-weight:400;font-style:normal;line-height:1.5;letter-spacing:normal;text-transform:none;text-align:left;white-space:normal;z-index:40}
+  .info:hover .tip,.info:focus .tip,.info:focus-within .tip{display:block}
+  .info .tip code{font-weight:600}
   .domains{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   /* Section heading as a themed band (uses the sidebar colour) so each domain card's
      heading is clearly separated from its content, and tracks the white-label theme. */
@@ -796,8 +804,6 @@
       <div class="csum-card"><div class="k">Students</div><div class="v">${n}</div></div>
       <div class="csum-card"><div class="k">Regular attendees</div><div class="v">${attWith?Math.round(regCount/attWith*100)+"%":"n/a"}</div>${asAt?`<div class="k" style="font-weight:400;margin-top:2px">data as at ${esc(asAt)}</div>`:""}</div>
       <div class="csum-card"><div class="k">Cohort attendance</div><div class="v">${attPct!=null?attPct+"%":"—"}</div></div>
-      <div class="csum-card" style="flex:1 1 260px"><div class="k">STAR bands (days absent)</div><div class="csum-chips">${starChips}</div></div>
-      <div class="csum-card" style="flex:1 1 280px"><div class="k">Academic Risk</div><div class="csum-chips">${riskChips}</div></div>
       <div class="csum-card" style="flex:1 1 220px"><div class="k">Gender</div><div class="csum-chips">${genChips}</div></div>
     </div>`;
   }
@@ -860,14 +866,21 @@
         <td><span style="color:var(--green);font-weight:700">${atPct}%</span> at/above &middot; <span style="color:var(--red);font-weight:700">${belPct}%</span> below</td>
         <td><span class="prog up">&#9650; ${o.improving}</span> &nbsp; <span class="prog down">&#9660; ${o.declining}</span>${o.steady?` &nbsp; <span class="prog flat">&#9632; ${o.steady}</span>`:""}</td>
       </tr>`;}).join("");
-    return `<div class="card" style="margin-top:14px"><h2 class="sec">Assessment &mdash; achievement &amp; progress</h2>
-      <p class="lineage" style="margin:0 0 10px">How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. Small groups are suppressed.</p>
+    const desc=`How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. Small groups are suppressed.`;
+    return `<div class="card" style="margin-top:14px">${secHead("Assessment &mdash; achievement &amp; progress",desc)}
       <table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   // Shared proportion renderer for cohort distribution cards (learning position,
   // attendance band). Coloured count chips + a single stacked proportion bar.
   // segs: [{label, n, color}] in display order. Zero-count segments are dropped
   // from the bar but still shown as a chip so the category is visible.
+  // Section header whose explanatory text lives in a hover "i" tip, not printed inline.
+  const stripTags=(s)=>String(s).replace(/<[^>]*>/g,"")
+    .replace(/&mdash;/g,"—").replace(/&ndash;/g,"–").replace(/&ge;/g,"≥")
+    .replace(/&le;/g,"≤").replace(/&rsquo;/g,"’").replace(/&middot;/g,"·").replace(/&amp;/g,"&");
+  function secHead(title,desc){
+    return `<h2 class="sec" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>${title}</span><span class="info" tabindex="0" role="note" aria-label="${esc(stripTags(desc))}">i<span class="tip">${desc}</span></span></h2>`;
+  }
   // Per-card choice of Bar (stacked) or Pie (donut) view for distribution cards.
   let distViews={};
   // Donut for a parts-of-a-whole distribution: few status categories summing to the
@@ -907,9 +920,28 @@
     if(!data.length) return "";
     const segs=[{label:"Secure",n:c.Secure,color:"#0f9d58"},{label:"Developing",n:c.Developing,color:"#e2760a"},{label:"Emerging",n:c.Emerging,color:"#d93b34"}];
     if(nd) segs.push({label:"Not Derived",n:nd,color:"#8794a3"});
-    return `<div class="card" style="margin-top:14px"><h2 class="sec">Learning position &mdash; where the cohort sits</h2>
-      <p class="lineage" style="margin:0 0 10px">How far learners sit from curriculum expectation &mdash; <b>Secure</b> (at the expected level), <b>Developing</b> (approaching it), <b>Emerging</b> (below it). Taken as each learner's <b>most-severe subject</b>, the same governed position that feeds Academic Risk (BR-AR-004). The assessment analog of the STAR attendance bands &mdash; an <b>independent</b> distribution, never a combined score. Per-subject achievement is in the card above.</p>
-      ${distBlock(segs,"lp")}</div>`;
+    const desc=`How far learners sit from curriculum expectation &mdash; <b>Secure</b> (at the expected level), <b>Developing</b> (approaching it), <b>Emerging</b> (below it). Taken as each learner's <b>most-severe subject</b>, the same governed position that feeds Academic Risk (BR-AR-004). The assessment analog of the STAR attendance bands &mdash; an <b>independent</b> distribution, never a combined score.`;
+    return `<div class="card">${secHead("Learning position",desc)}${distBlock(segs,"lp")}</div>`;
+  }
+  // Academic Risk band distribution (#4 as a card): Low/Moderate/High + Not Derived.
+  function riskBandCard(data){
+    const rb={}; let nd=0;
+    data.forEach(({l})=>{const ar=l.academic_risk||{}; if(ar.derivation_status==="Derived") rb[ar.academic_risk]=(rb[ar.academic_risk]||0)+1; else nd++;});
+    if(!data.length) return "";
+    const segs=[{label:"Low",n:rb.Low||0,color:"#0f9d58"},{label:"Moderate",n:rb.Moderate||0,color:"#e2760a"},{label:"High",n:rb.High||0,color:"#d93b34"}];
+    if(nd) segs.push({label:"Not Derived",n:nd,color:"#8794a3"});
+    const desc=`Academic Risk after governed derivation &mdash; <b>Low / Moderate / High</b>, or <b>Not Derived</b> when evidence is insufficient (a status, never a guess). Combines learning position, progress and an attendance escalation per the approved rules (BR-AR) &mdash; an <b>independent</b> domain result, never blended with the other signals.`;
+    return `<div class="card">${secHead("Academic Risk",desc)}${distBlock(segs,"risk")}</div>`;
+  }
+  // STAR attendance band distribution (#as a card): Ministry days-absent bands.
+  function starBandCard(data){
+    const band={}; let avail=0;
+    data.forEach(({l})=>{const b=starBandOf(cohortStar(l)); if(b){band[b.no]=(band[b.no]||0)+1; avail++;}});
+    if(!data.length) return "";
+    const segs=STAR_BANDS.map(b=>({label:b.label.replace(" attendance",""),n:band[b.no]||0,color:b.color}));
+    const un=data.length-avail; if(un) segs.push({label:"Unavailable",n:un,color:"#8794a3"});
+    const desc=`STAR attendance bands &mdash; days absent placed on the Ministry&rsquo;s own thresholds (Good / Worrying / Concerning / Very concerning). Counts of learners in each band for this scope${cohortFilter.term?", this term":", full year"}. An <b>independent</b> attendance signal; it never touches the academic-risk number.`;
+    return `<div class="card">${secHead("STAR attendance bands",desc)}${distBlock(segs,"star")}</div>`;
   }
   // Attendance band split (#5): REGULAR / WATCH / AT-RISK across the cohort, the full
   // attention-band distribution behind the "regular attendees %" headline. Independent
@@ -920,9 +952,8 @@
     if(!data.length) return "";
     const segs=[{label:"Regular",n:c.REGULAR,color:"#0f9d58"},{label:"Watch",n:c.WATCH,color:"#e2760a"},{label:"At-risk",n:c.AT_RISK,color:"#d93b34"}];
     if(none) segs.push({label:"No band",n:none,color:"#8794a3"});
-    return `<div class="card" style="margin-top:14px"><h2 class="sec">Attendance band split</h2>
-      <p class="lineage" style="margin:0 0 10px">The attention band for every learner in scope &mdash; <b>Regular</b> (&ge;90%), <b>Watch</b>, <b>At-risk</b> &mdash; the full picture behind the regular-attendees headline. From Attendance Intelligence (governed <code>reporting.attendance_*</code>). An <b>independent</b> signal: attendance can escalate Academic Risk by one step but never produces High on its own.</p>
-      ${distBlock(segs,"attband")}</div>`;
+    const desc=`The attention band for every learner in scope &mdash; <b>Regular</b> (&ge;90%), <b>Watch</b>, <b>At-risk</b> &mdash; the full picture behind the regular-attendees headline. From Attendance Intelligence (governed <code>reporting.attendance_*</code>). An <b>independent</b> signal: attendance can escalate Academic Risk by one step but never produces High on its own.`;
+    return `<div class="card">${secHead("Attendance bands",desc)}${distBlock(segs,"attband")}</div>`;
   }
   // Equity lens: achievement, attendance and share at risk by ethnicity / gender,
   // ranked so gaps are visible. Independent signals, never a combined score; small
@@ -957,8 +988,8 @@
     }).join("");
     const supNote=suppressed.length?`<p class="lineage" style="margin:9px 0 0">Suppressed (too few to show): ${suppressed.map(x=>esc(x.g)+" (n="+x.n+")").join(", ")}.</p>`:"";
     const dimChips=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${equityDim==="ethnicity"?" on":""}" data-equity="ethnicity">By ethnicity</button><button class="att-fchip${equityDim==="gender"?" on":""}" data-equity="gender">By gender</button></div>`;
-    return `<div class="card" style="margin-top:14px"><h2 class="sec">Equity &mdash; gaps by group</h2>
-      <p class="lineage" style="margin:0 0 10px">Where the gaps are and who they affect, <b>by ${equityDim==="gender"?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. Ranked by achievement.</p>
+    const desc=`Where the gaps are and who they affect, <b>by ${equityDim==="gender"?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. Ranked by achievement.`;
+    return `<div class="card" style="margin-top:14px">${secHead("Equity &mdash; gaps by group",desc)}
       ${dimChips}
       <table class="ctable"><thead><tr><th>Group</th><th>Achievement</th><th>At or above</th><th>Attendance</th><th>Mod + High risk</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty" style="padding:12px">No group meets the minimum to show.</td></tr>`}</tbody></table>
       ${supNote}</div>`;
@@ -970,9 +1001,8 @@
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
       ${cohortAssessment(data)}
-      ${learningPositionCard(data)}
+      <div class="distgrid">${learningPositionCard(data)}${riskBandCard(data)}${starBandCard(data)}${attendanceBandCard(data)}</div>
       ${equityCard(data)}
-      ${attendanceBandCard(data)}
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
