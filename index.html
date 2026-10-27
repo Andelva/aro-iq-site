@@ -873,14 +873,14 @@
     const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="asmt">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="asmt">Pie</button></div>`;
     let bodyHtml;
     if(view==="pie"){
-      let below=0,at=0,above=0;
-      data.forEach(({l})=>{(l.assessment||[]).forEach(a=>{ if(/cognitive/i.test(a.learning_area||"")) return; if(a.band==="Below")below++; else if(a.band==="At")at++; else if(a.band==="Above")above++; });});
-      const segs=[{label:"Above",n:above,color:"#0f9d58"},{label:"At",n:at,color:"#e2760a"},{label:"Below",n:below,color:"#d93b34"}];
-      bodyHtml=pieBlock(segs,"RESULTS");
+      const b={0:0,1:0,2:0,3:0};
+      data.forEach(({l})=>{ const subs=(l.assessment||[]).filter(a=>!/cognitive/i.test(a.learning_area||"")&&a.band); if(!subs.length) return; const nb=Math.min(subs.filter(a=>a.band==="Below").length,3); b[nb]++; });
+      const segs=[{label:"None below",n:b[0],color:"#0f9d58"},{label:"1 below",n:b[1],color:"#f4c04e"},{label:"2 below",n:b[2],color:"#e2760a"},{label:"3 below",n:b[3],color:"#d93b34"}];
+      bodyHtml=pieBlock(segs,"LEARNERS");
     } else {
       bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
-    const desc=`How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. The <b>Pie</b> view shows the overall Below / At / Above split across all subject results.`;
+    const desc=`How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. The <b>Table</b> breaks achievement down <b>by subject</b>; the <b>Pie</b> counts each <b>learner</b> once, by how many of their subjects are below expectation.`;
     return `<div class="card">${secHead("Assessment &mdash; achievement &amp; progress",desc)}${toggle}${bodyHtml}</div>`;
   }
   // Shared proportion renderer for cohort distribution cards (learning position,
