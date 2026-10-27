@@ -1053,7 +1053,7 @@
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
-      <div class="distgrid">${riskBandCard(data)}${equityCard(data,"ethnicity")}${equityCard(data,"gender")}${cohortAssessment(data)}${attendanceBandCard(data)}${starBandCard(data)}</div>
+      <div class="distgrid">${cohortAssessment(data)}${equityCard(data,"ethnicity")}${equityCard(data,"gender")}${riskBandCard(data)}${attendanceBandCard(data)}${starBandCard(data)}</div>
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
