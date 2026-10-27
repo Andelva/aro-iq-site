@@ -774,11 +774,27 @@
     const arrow=(k)=>cohortSort.key===k?`<span class="sarrow">${cohortSort.dir>0?"▲":"▼"}</span>`:"";
     const th=(k,label)=>`<th class="sortable" data-sort="${k}" title="Sort by ${esc(label)}">${esc(label)} ${arrow(k)}</th>`;
     const head=`<tr>${th("name","Learner")}${th("year","Year")}<th>Classes</th>${th("gender","Gender")}${th("ethnicity","Ethnicity")}${th("risk","Academic Risk")}${th("lp","Learning position")}${th("att","Attendance")}${th("star","STAR")}</tr>`;
-    const years=[...new Set(ARO_DATA.map(l=>l.year_level).filter(Boolean))].sort((a,b)=>(parseInt(String(a).replace(/\D/g,""))||0)-(parseInt(String(b).replace(/\D/g,""))||0));
-    const genders=[...new Set(ARO_DATA.map(l=>(l.detail||{}).gender).filter(Boolean))].sort();
-    const ethnicities=[...new Set(ARO_DATA.map(l=>(l.detail||{}).ethnicity).filter(Boolean))].sort();
-    const classes=[...new Set(ARO_DATA.flatMap(l=>(l.teaching_groups||[]).map(g=>g.name)).filter(Boolean))].sort();
-    const teachers=[...new Set(ARO_DATA.flatMap(l=>(l.teaching_groups||[]).map(g=>g.teacher)).filter(Boolean))].sort();
+    // Cascading options: each dropdown lists only values still available given the OTHER
+    // active filters, so picking one filter narrows the rest. A dimension's own filter is
+    // ignored when building its list, and its current selection is always kept present.
+    const f=cohortFilter;
+    const passExcept=(l,except)=>{
+      if(except!=="year"      && f.year      && String(l.year_level)!==f.year) return false;
+      if(except!=="gender"    && f.gender    && ((l.detail||{}).gender||"")!==f.gender) return false;
+      if(except!=="ethnicity" && f.ethnicity && ((l.detail||{}).ethnicity||"")!==f.ethnicity) return false;
+      if(except!=="cls"       && f.cls       && !(l.teaching_groups||[]).some(g=>g.name===f.cls)) return false;
+      if(except!=="teacher"   && f.teacher   && !(l.teaching_groups||[]).some(g=>g.teacher===f.teacher)) return false;
+      if(except!=="risk"      && f.risk){const ar=l.academic_risk||{}; if((ar.derivation_status==="Derived"?ar.academic_risk:"Not Derived")!==f.risk) return false;}
+      if(except!=="star"      && f.star){const b=starBandOf(cohortStar(l)); if(!(b&&String(b.no)===f.star)) return false;}
+      return true;
+    };
+    const avail=(except)=>ARO_DATA.filter(l=>passExcept(l,except));
+    const withSel=(list,selVal)=> (selVal && !list.map(String).includes(String(selVal))) ? list.concat(selVal) : list;
+    const years=withSel([...new Set(avail("year").map(l=>l.year_level).filter(Boolean))],f.year).sort((a,b)=>(parseInt(String(a).replace(/\D/g,""))||0)-(parseInt(String(b).replace(/\D/g,""))||0));
+    const genders=withSel([...new Set(avail("gender").map(l=>(l.detail||{}).gender).filter(Boolean))],f.gender).sort();
+    const ethnicities=withSel([...new Set(avail("ethnicity").map(l=>(l.detail||{}).ethnicity).filter(Boolean))],f.ethnicity).sort();
+    const classes=withSel([...new Set(avail("cls").flatMap(l=>(l.teaching_groups||[]).map(g=>g.name)).filter(Boolean))],f.cls).sort();
+    const teachers=withSel([...new Set(avail("teacher").flatMap(l=>(l.teaching_groups||[]).map(g=>g.teacher)).filter(Boolean))],f.teacher).sort();
     const sel=(name,label,opts)=>`<select data-cfilter="${name}" aria-label="Filter by ${esc(label)}"><option value="">${esc(label)}: all</option>${opts.map(o=>`<option value="${esc(o.v)}"${cohortFilter[name]===o.v?" selected":""}>${esc(o.t)}</option>`).join("")}</select>`;
     const terms=allTerms();
     const anyF=cohortFilter.year||cohortFilter.gender||cohortFilter.ethnicity||cohortFilter.cls||cohortFilter.teacher||cohortFilter.risk||cohortFilter.star||cohortFilter.term;
