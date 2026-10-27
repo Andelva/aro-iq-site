@@ -77,7 +77,9 @@
   .arrow{color:var(--muted);font-weight:700}
   .lineage{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5}
   /* Side-by-side distribution cards (learning position / risk / STAR / attendance band). */
-  .distgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px;margin-top:14px;align-items:start}
+  .distgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
+  @media(max-width:980px){.distgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:620px){.distgrid{grid-template-columns:1fr}}
   /* Hover "i" affordance that carries a section's explanatory text instead of printing it. */
   .info{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--side-ink);font-size:11px;font-weight:700;font-style:italic;cursor:help;flex:0 0 auto;user-select:none}
   .info:hover,.info:focus-visible{background:rgba(255,255,255,.42);outline:none}
@@ -866,9 +868,19 @@
         <td><span style="color:var(--green);font-weight:700">${atPct}%</span> at/above &middot; <span style="color:var(--red);font-weight:700">${belPct}%</span> below</td>
         <td><span class="prog up">&#9650; ${o.improving}</span> &nbsp; <span class="prog down">&#9660; ${o.declining}</span>${o.steady?` &nbsp; <span class="prog flat">&#9632; ${o.steady}</span>`:""}</td>
       </tr>`;}).join("");
-    const desc=`How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. Small groups are suppressed.`;
-    return `<div class="card" style="margin-top:14px">${secHead("Assessment &mdash; achievement &amp; progress",desc)}
-      <table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    const view=distViews["asmt"]||"bar";
+    const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="asmt">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="asmt">Pie</button></div>`;
+    let bodyHtml;
+    if(view==="pie"){
+      let below=0,at=0,above=0;
+      data.forEach(({l})=>{(l.assessment||[]).forEach(a=>{ if(/cognitive/i.test(a.learning_area||"")) return; if(a.band==="Below")below++; else if(a.band==="At")at++; else if(a.band==="Above")above++; });});
+      const segs=[{label:"Above",n:above,color:"#0f9d58"},{label:"At",n:at,color:"#e2760a"},{label:"Below",n:below,color:"#d93b34"}];
+      bodyHtml=pieBlock(segs,"RESULTS");
+    } else {
+      bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    const desc=`How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. The <b>Pie</b> view shows the overall Below / At / Above split across all subject results.`;
+    return `<div class="card">${secHead("Assessment &mdash; achievement &amp; progress",desc)}${toggle}${bodyHtml}</div>`;
   }
   // Shared proportion renderer for cohort distribution cards (learning position,
   // attendance band). Coloured count chips + a single stacked proportion bar.
@@ -886,7 +898,8 @@
   // Donut for a parts-of-a-whole distribution: few status categories summing to the
   // cohort, 2px gaps between slices, per-slice hover title, cohort total in the hole.
   // The coloured chips below carry the labels, so identity is never colour-alone.
-  function donutSvg(segs,tot){
+  function donutSvg(segs,tot,centerLabel){
+    centerLabel=centerLabel||"LEARNERS";
     const R=47, C=2*Math.PI*R, cx=60, cy=60, sw=16;
     let off=0;
     const arcs=segs.filter(s=>s.n).map(s=>{
@@ -894,7 +907,14 @@
       const el=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${draw.toFixed(2)} ${(C-draw).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"><title>${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)</title></circle>`;
       off+=len; return el;
     }).join("");
-    return `<svg viewBox="0 0 120 120" width="148" height="148" role="img" aria-label="Distribution donut; see the labelled legend" style="flex:0 0 auto">${arcs}<text x="60" y="57" text-anchor="middle" font-size="22" font-weight="800" fill="var(--ink)">${tot}</text><text x="60" y="73" text-anchor="middle" font-size="8.5" letter-spacing=".08em" fill="var(--muted)">LEARNERS</text></svg>`;
+    return `<svg viewBox="0 0 120 120" width="148" height="148" role="img" aria-label="Distribution donut; see the labelled legend" style="flex:0 0 auto">${arcs}<text x="60" y="57" text-anchor="middle" font-size="22" font-weight="800" fill="var(--ink)">${tot}</text><text x="60" y="73" text-anchor="middle" font-size="8.5" letter-spacing=".08em" fill="var(--muted)">${esc(centerLabel)}</text></svg>`;
+  }
+  // Donut + labelled chips, shared by the distribution cards and the assessment/equity
+  // pie views. centerLabel names what the hole's total counts (learners, results, ...).
+  function pieBlock(segs,centerLabel){
+    const tot=segs.reduce((s,x)=>s+x.n,0)||1;
+    const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
+    return `<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">${donutSvg(segs,tot,centerLabel)}<div class="csum-chips" style="flex:1 1 160px">${chips}</div></div>`;
   }
   function distBlock(segs,key){
     const tot=segs.reduce((s,x)=>s+x.n,0)||1;
@@ -903,7 +923,7 @@
     const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
     let body;
     if(view==="pie"){
-      body=`<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">${donutSvg(segs,tot)}<div class="csum-chips" style="flex:1 1 180px">${chips}</div></div>`;
+      body=pieBlock(segs,"LEARNERS");
     } else {
       const bar=`<div class="asmt-bar" style="max-width:none;width:100%;height:16px;margin-top:10px">${segs.map(s=>s.n?`<span title="${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)" style="flex:${s.n};background:${s.color}"></span>`:"").join("")}</div>`;
       body=`<div class="csum-chips">${chips}</div>${bar}`;
@@ -988,11 +1008,21 @@
     }).join("");
     const supNote=suppressed.length?`<p class="lineage" style="margin:9px 0 0">Suppressed (too few to show): ${suppressed.map(x=>esc(x.g)+" (n="+x.n+")").join(", ")}.</p>`:"";
     const dimChips=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${equityDim==="ethnicity"?" on":""}" data-equity="ethnicity">By ethnicity</button><button class="att-fchip${equityDim==="gender"?" on":""}" data-equity="gender">By gender</button></div>`;
-    const desc=`Where the gaps are and who they affect, <b>by ${equityDim==="gender"?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. Ranked by achievement.`;
-    return `<div class="card" style="margin-top:14px">${secHead("Equity &mdash; gaps by group",desc)}
-      ${dimChips}
-      <table class="ctable"><thead><tr><th>Group</th><th>Achievement</th><th>At or above</th><th>Attendance</th><th>Mod + High risk</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty" style="padding:12px">No group meets the minimum to show.</td></tr>`}</tbody></table>
-      ${supNote}</div>`;
+    const view=distViews["equity"]||"bar";
+    const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="equity">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="equity">Pie</button></div>`;
+    let bodyHtml;
+    if(view==="pie"){
+      const PAL=["#4e79a7","#59a14f","#e15759","#f28e2b","#9c6ade","#76b7b2","#b07aa1","#edc949"];
+      const grp=shown.slice().sort((a,b)=>b.atRisk-a.atRisk);
+      const segs=grp.map((x,i)=>({label:x.g,n:x.atRisk,color:PAL[i%PAL.length]}));
+      const supRisk=suppressed.reduce((s,x)=>s+x.atRisk,0); if(supRisk) segs.push({label:"Other (small groups)",n:supRisk,color:"#8794a3"});
+      const totRisk=segs.reduce((s,x)=>s+x.n,0);
+      bodyHtml = totRisk ? pieBlock(segs,"AT RISK") : `<div class="empty" style="padding:14px">No Moderate or High academic risk in this scope to break down.</div>`;
+    } else {
+      bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Group</th><th>Achievement</th><th>At or above</th><th>Attendance</th><th>Mod + High risk</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty" style="padding:12px">No group meets the minimum to show.</td></tr>`}</tbody></table></div>${supNote}`;
+    }
+    const desc=`Where the gaps are and who they affect, <b>by ${equityDim==="gender"?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. The <b>Table</b> ranks groups by achievement; the <b>Pie</b> shows each group's share of the cohort's Moderate + High academic risk.`;
+    return `<div class="card">${secHead("Equity &mdash; gaps by group",desc)}${dimChips}${toggle}${bodyHtml}</div>`;
   }
   function renderCohort(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
@@ -1000,9 +1030,7 @@
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
-      ${cohortAssessment(data)}
-      <div class="distgrid">${learningPositionCard(data)}${riskBandCard(data)}${starBandCard(data)}${attendanceBandCard(data)}</div>
-      ${equityCard(data)}
+      <div class="distgrid">${learningPositionCard(data)}${riskBandCard(data)}${starBandCard(data)}${attendanceBandCard(data)}${cohortAssessment(data)}${equityCard(data)}</div>
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
