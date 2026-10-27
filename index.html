@@ -868,7 +868,7 @@
         <td><span style="color:var(--green);font-weight:700">${atPct}%</span> at/above &middot; <span style="color:var(--red);font-weight:700">${belPct}%</span> below</td>
         <td><span class="prog up">&#9650; ${o.improving}</span> &nbsp; <span class="prog down">&#9660; ${o.declining}</span>${o.steady?` &nbsp; <span class="prog flat">&#9632; ${o.steady}</span>`:""}</td>
       </tr>`;}).join("");
-    const view=distViews["asmt"]||"bar";
+    const view=distViews["asmt"]||"pie";
     const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="asmt">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="asmt">Pie</button></div>`;
     let bodyHtml;
     if(view==="pie"){
@@ -939,7 +939,7 @@
   // (labelled donut + legend below).
   function distBlock(segs,key){
     const tot=segs.reduce((s,x)=>s+x.n,0)||1;
-    const view=distViews[key]||"bar";
+    const view=distViews[key]||"pie";
     const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="${esc(key)}">Bar</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="${esc(key)}">Pie</button></div>`;
     const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
     let body;
@@ -1029,7 +1029,7 @@
     }).join("");
     const supNote=suppressed.length?`<p class="lineage" style="margin:9px 0 0">Suppressed (too few to show): ${suppressed.map(x=>esc(x.g)+" (n="+x.n+")").join(", ")}.</p>`:"";
     const dimChips=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${equityDim==="ethnicity"?" on":""}" data-equity="ethnicity">By ethnicity</button><button class="att-fchip${equityDim==="gender"?" on":""}" data-equity="gender">By gender</button></div>`;
-    const view=distViews["equity"]||"bar";
+    const view=distViews["equity"]||"pie";
     const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="equity">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="equity">Pie</button></div>`;
     let bodyHtml;
     if(view==="pie"){
