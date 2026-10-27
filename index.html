@@ -1045,7 +1045,7 @@
       bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Group</th><th>Achievement</th><th>At or above</th><th>Attendance</th><th>Mod + High risk</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty" style="padding:12px">No group meets the minimum to show.</td></tr>`}</tbody></table></div>${supNote}`;
     }
     const desc=`Where the gaps are and who they affect, <b>by ${byGender?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. The <b>Table</b> ranks groups by achievement; the <b>Pie</b> shows each group's share of the cohort's Moderate + High academic risk.`;
-    return `<div class="card">${secHead("Risk equity &mdash; by "+(byGender?"gender":"ethnicity"),desc)}${toggle}${bodyHtml}</div>`;
+    return `<div class="card">${secHead((view==="pie"?"Risk equity":"Equity")+" &mdash; by "+(byGender?"gender":"ethnicity"),desc)}${toggle}${bodyHtml}</div>`;
   }
   function renderCohort(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
@@ -1053,7 +1053,7 @@
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
-      <div class="distgrid">${riskBandCard(data)}${starBandCard(data)}${attendanceBandCard(data)}${cohortAssessment(data)}${equityCard(data,"ethnicity")}${equityCard(data,"gender")}</div>
+      <div class="distgrid">${riskBandCard(data)}${equityCard(data,"ethnicity")}${equityCard(data,"gender")}${cohortAssessment(data)}${attendanceBandCard(data)}${starBandCard(data)}</div>
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
