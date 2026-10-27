@@ -935,9 +935,21 @@
     const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
     return `${donutSvg(segs,tot,centerLabel)}<div class="csum-chips" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px">${chips}</div>`;
   }
-  // Distribution cards are pie-only now (Bar view removed); labelled donut + legend below.
-  function distBlock(segs){
-    return pieBlock(segs,"LEARNERS");
+  // Distribution cards toggle between Bar (stacked proportion bar + chips) and Pie
+  // (labelled donut + legend below).
+  function distBlock(segs,key){
+    const tot=segs.reduce((s,x)=>s+x.n,0)||1;
+    const view=distViews[key]||"bar";
+    const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="${esc(key)}">Bar</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="${esc(key)}">Pie</button></div>`;
+    const chips=segs.map(s=>`<span class="csum-chip" style="background:${s.color};color:#fff">${esc(s.label)}: <b>${s.n}</b> <span style="font-weight:400;opacity:.85">(${Math.round(s.n/tot*100)}%)</span></span>`).join("");
+    let body;
+    if(view==="pie"){
+      body=pieBlock(segs,"LEARNERS");
+    } else {
+      const bar=`<div class="asmt-bar" style="max-width:none;width:100%;height:16px;margin-top:10px">${segs.map(s=>s.n?`<span title="${esc(s.label)}: ${s.n} (${Math.round(s.n/tot*100)}%)" style="flex:${s.n};background:${s.color}"></span>`:"").join("")}</div>`;
+      body=`<div class="csum-chips">${chips}</div>${bar}`;
+    }
+    return `${toggle}${body}`;
   }
   // Learning Position distribution (#2): the assessment analog of the STAR attendance
   // bands. Uses each learner's governed learning_position (most-severe subject) that
