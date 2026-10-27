@@ -761,6 +761,7 @@
         if(k==="gender")    return ((l.detail||{}).gender||"").toLowerCase();
         if(k==="ethnicity") return ((l.detail||{}).ethnicity||"").toLowerCase();
         if(k==="risk"){const x=ar.derivation_status==="Derived"?ar.academic_risk:"";return x==="High"?3:x==="Moderate"?2:x==="Low"?1:0;}
+        if(k==="lp"){const p=ar.derivation_status==="Derived"?ar.learning_position:"";return p==="Emerging"?3:p==="Developing"?2:p==="Secure"?1:0;}
         if(k==="att")  return at.rate!=null?at.rate:-1;
         if(k==="assess")return (l.assessment||[]).filter(x=>x.band==="Below").length;
         if(k==="star"){const b=starBandOf(s);return b?(b.no*1000+(s.absence_days||0)):-1;}
@@ -772,7 +773,7 @@
   function cohortControls(){
     const arrow=(k)=>cohortSort.key===k?`<span class="sarrow">${cohortSort.dir>0?"▲":"▼"}</span>`:"";
     const th=(k,label)=>`<th class="sortable" data-sort="${k}" title="Sort by ${esc(label)}">${esc(label)} ${arrow(k)}</th>`;
-    const head=`<tr>${th("name","Learner")}${th("year","Year")}<th>Classes</th>${th("gender","Gender")}${th("ethnicity","Ethnicity")}${th("risk","Academic Risk")}${th("att","Attendance")}${th("star","STAR")}</tr>`;
+    const head=`<tr>${th("name","Learner")}${th("year","Year")}<th>Classes</th>${th("gender","Gender")}${th("ethnicity","Ethnicity")}${th("risk","Academic Risk")}${th("lp","Learning position")}${th("att","Attendance")}${th("star","STAR")}</tr>`;
     const years=[...new Set(ARO_DATA.map(l=>l.year_level).filter(Boolean))].sort((a,b)=>(parseInt(String(a).replace(/\D/g,""))||0)-(parseInt(String(b).replace(/\D/g,""))||0));
     const genders=[...new Set(ARO_DATA.map(l=>(l.detail||{}).gender).filter(Boolean))].sort();
     const ethnicities=[...new Set(ARO_DATA.map(l=>(l.detail||{}).ethnicity).filter(Boolean))].sort();
@@ -1000,8 +1001,9 @@
   // ranked so gaps are visible. Independent signals, never a combined score; small
   // groups suppressed (shown, not guessed). Respects the cohort filter.
   let equityDim="ethnicity";
-  function equityCard(data){
-    const valOf = equityDim==="gender" ? (l=>(l.detail||{}).gender) : (l=>(l.detail||{}).ethnicity);
+  function equityCard(data,dim){
+    const byGender=dim==="gender";
+    const valOf = byGender ? (l=>(l.detail||{}).gender) : (l=>(l.detail||{}).ethnicity);
     const G={};
     data.forEach(({l})=>{
       const g=valOf(l)||"—"; const o=G[g]=G[g]||{n:0,asmtN:0,atAbove:0,below:0,rateSum:0,rateN:0,derived:0,atRisk:0};
@@ -1028,9 +1030,9 @@
       </tr>`;
     }).join("");
     const supNote=suppressed.length?`<p class="lineage" style="margin:9px 0 0">Suppressed (too few to show): ${suppressed.map(x=>esc(x.g)+" (n="+x.n+")").join(", ")}.</p>`:"";
-    const dimChips=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${equityDim==="ethnicity"?" on":""}" data-equity="ethnicity">By ethnicity</button><button class="att-fchip${equityDim==="gender"?" on":""}" data-equity="gender">By gender</button></div>`;
-    const view=distViews["equity"]||"pie";
-    const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="equity">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="equity">Pie</button></div>`;
+    const key="equity_"+(byGender?"gender":"ethnicity");
+    const view=distViews[key]||"pie";
+    const toggle=`<div class="att-filters" style="margin:0 0 10px"><button class="att-fchip${view==="bar"?" on":""}" data-distview="bar" data-distkey="${key}">Table</button><button class="att-fchip${view==="pie"?" on":""}" data-distview="pie" data-distkey="${key}">Pie</button></div>`;
     let bodyHtml;
     if(view==="pie"){
       const PAL=["#4e79a7","#59a14f","#e15759","#f28e2b","#9c6ade","#76b7b2","#b07aa1","#edc949"];
@@ -1042,8 +1044,8 @@
     } else {
       bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Group</th><th>Achievement</th><th>At or above</th><th>Attendance</th><th>Mod + High risk</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty" style="padding:12px">No group meets the minimum to show.</td></tr>`}</tbody></table></div>${supNote}`;
     }
-    const desc=`Where the gaps are and who they affect, <b>by ${equityDim==="gender"?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. The <b>Table</b> ranks groups by achievement; the <b>Pie</b> shows each group's share of the cohort's Moderate + High academic risk.`;
-    return `<div class="card">${secHead("Equity &mdash; gaps by group",desc)}${dimChips}${toggle}${bodyHtml}</div>`;
+    const desc=`Where the gaps are and who they affect, <b>by ${byGender?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. The <b>Table</b> ranks groups by achievement; the <b>Pie</b> shows each group's share of the cohort's Moderate + High academic risk.`;
+    return `<div class="card">${secHead("Equity &mdash; by "+(byGender?"gender":"ethnicity"),desc)}${toggle}${bodyHtml}</div>`;
   }
   function renderCohort(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
@@ -1051,7 +1053,7 @@
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}<p class="lineage" style="margin:12px 0 0">The full filterable, sortable learner list is on the <a class="clickable" data-goto="students" role="button" tabindex="0">Cohort view</a>.</p></div>
-      <div class="distgrid">${learningPositionCard(data)}${riskBandCard(data)}${starBandCard(data)}${attendanceBandCard(data)}${cohortAssessment(data)}${equityCard(data)}</div>
+      <div class="distgrid">${riskBandCard(data)}${starBandCard(data)}${attendanceBandCard(data)}${cohortAssessment(data)}${equityCard(data,"ethnicity")}${equityCard(data,"gender")}</div>
       <div class="card" style="margin-top:14px"><h2 class="sec">Cohort attendance over time${filt}</h2>${trendBlock(data)}</div>`;
   }
   // Historical Cohort Intelligence (BR-HIS): current cohorts beside prior-year
@@ -1111,7 +1113,7 @@
   function renderStudents(){
     if(!ARO_DATA.length) return `<div class="msg">No learners visible for this access scope.</div>`;
     const data=cohortRows(), ctl=cohortControls();
-    const rows=data.map(({l,i})=>{const ar=l.academic_risk||{},lvl=ar.derivation_status==="Derived"?ar.academic_risk:"Not Derived",pillC=lvl==="Low"?"b-Low":lvl==="Moderate"?"b-Moderate":lvl==="High"?"b-High":"b-none",at=l.attendance||{},dt=l.detail||{};return `<tr class="crow" data-select="${i}" title="Open this learner"><td><div class="cname">${avatarHtml(l,"cavatar")}<b class="clickable" data-select="${i}" role="button" tabindex="0">${esc(learnerFullName(l))}</b></div></td><td>${esc(l.year_level)}</td><td>${(l.teaching_groups||[]).length?(l.teaching_groups||[]).map(g=>`<span class="tg-chip" title="${esc(g.name||"")}${g.teacher?" / "+esc(g.teacher):""}">${esc(g.subject||g.name||"")}</span>`).join(""):'<span style="color:var(--faint)">-</span>'}</td><td>${esc(dt.gender||"-")}</td><td>${esc(dt.ethnicity||"-")}</td><td class="cdeep" data-select="${i}" data-selectview="learner" title="Open Learner view"><span class="pill ${pillC}">${esc(lvl)}</span></td><td class="cdeep" data-select="${i}" data-selectview="attendance" title="Open Attendance"><span class="clickable" style="font-weight:600;color:${attColor(at.band)}">${pct(at.rate)}</span></td><td>${starCell(l,i,cohortStar(l))}</td></tr>`;}).join("")||`<tr><td colspan="8" class="empty" style="padding:16px">No learners match the current filters.</td></tr>`;
+    const rows=data.map(({l,i})=>{const ar=l.academic_risk||{},lvl=ar.derivation_status==="Derived"?ar.academic_risk:"Not Derived",pillC=lvl==="Low"?"b-Low":lvl==="Moderate"?"b-Moderate":lvl==="High"?"b-High":"b-none",at=l.attendance||{},dt=l.detail||{},lp=ar.derivation_status==="Derived"?ar.learning_position:"Not Derived",lpC=lp==="Secure"?"#0f9d58":lp==="Developing"?"#e2760a":lp==="Emerging"?"#d93b34":"#8794a3";return `<tr class="crow" data-select="${i}" title="Open this learner"><td><div class="cname">${avatarHtml(l,"cavatar")}<b class="clickable" data-select="${i}" role="button" tabindex="0">${esc(learnerFullName(l))}</b></div></td><td>${esc(l.year_level)}</td><td>${(l.teaching_groups||[]).length?(l.teaching_groups||[]).map(g=>`<span class="tg-chip" title="${esc(g.name||"")}${g.teacher?" / "+esc(g.teacher):""}">${esc(g.subject||g.name||"")}</span>`).join(""):'<span style="color:var(--faint)">-</span>'}</td><td>${esc(dt.gender||"-")}</td><td>${esc(dt.ethnicity||"-")}</td><td class="cdeep" data-select="${i}" data-selectview="learner" title="Open Learner view"><span class="pill ${pillC}">${esc(lvl)}</span></td><td class="cdeep" data-select="${i}" data-selectview="learner" title="Open Learner view"><span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;background:${lpC}">${esc(lp)}</span></td><td class="cdeep" data-select="${i}" data-selectview="attendance" title="Open Attendance"><span class="clickable" style="font-weight:600;color:${attColor(at.band)}">${pct(at.rate)}</span></td><td>${starCell(l,i,cohortStar(l))}</td></tr>`;}).join("")||`<tr><td colspan="9" class="empty" style="padding:16px">No learners match the current filters.</td></tr>`;
     const filt = data.length!==ARO_DATA.length ? " &mdash; filtered selection" : "";
     return `${ctl.filterBar}
       <div class="card"><h2 class="sec">Cohort totals${filt}</h2>${cohortSummary(data)}</div>
