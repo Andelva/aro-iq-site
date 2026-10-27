@@ -880,7 +880,7 @@
     } else {
       bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Subject</th><th>Achievement</th><th>Against expectation</th><th>Progress (learners)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
-    const desc=`How this cohort is working against curriculum expectation, <b>per subject</b> &mdash; an <b>independent</b> view, never blended into a combined score. Achievement is the governed band (<b>At/Above</b> vs <b>Below</b>); progress is observed change between the two comparable sittings this year (BR-CMP). Cognitive ability tests are excluded. The <b>Table</b> breaks achievement down <b>by subject</b>; the <b>Pie</b> counts each <b>learner</b> once, by how many of their subjects are below expectation.`;
+    const desc=`How the cohort is doing against curriculum expectation. The <b>Table</b> shows achievement by subject; the <b>Pie</b> counts each learner by how many subjects they're below in.`;
     return `<div class="card">${secHead("Assessment &mdash; achievement &amp; progress",desc)}${toggle}${bodyHtml}</div>`;
   }
   // Shared proportion renderer for cohort distribution cards (learning position,
@@ -972,7 +972,7 @@
     if(!data.length) return "";
     const segs=[{label:"Low",n:rb.Low||0,color:"#0f9d58"},{label:"Moderate",n:rb.Moderate||0,color:"#e2760a"},{label:"High",n:rb.High||0,color:"#d93b34"}];
     if(nd) segs.push({label:"Not Derived",n:nd,color:"#8794a3"});
-    const desc=`Academic Risk after governed derivation &mdash; <b>Low / Moderate / High</b>, or <b>Not Derived</b> when evidence is insufficient (a status, never a guess). Combines learning position, progress and an attendance escalation per the approved rules (BR-AR) &mdash; an <b>independent</b> domain result, never blended with the other signals.`;
+    const desc=`How many learners are at <b>Low</b>, <b>Moderate</b> or <b>High</b> academic risk. <b>Not Derived</b> means there wasn't enough evidence to decide.`;
     return `<div class="card">${secHead("Academic Risk",desc)}${distBlock(segs,"risk")}</div>`;
   }
   // STAR attendance band distribution (#as a card): Ministry days-absent bands.
@@ -982,7 +982,7 @@
     if(!data.length) return "";
     const segs=STAR_BANDS.map(b=>({label:b.label.replace(" attendance",""),n:band[b.no]||0,color:b.color}));
     const un=data.length-avail; if(un) segs.push({label:"Unavailable",n:un,color:"#8794a3"});
-    const desc=`STAR attendance bands &mdash; days absent placed on the Ministry&rsquo;s own thresholds (Good / Worrying / Concerning / Very concerning). Counts of learners in each band for this scope${cohortFilter.term?", this term":", full year"}. An <b>independent</b> attendance signal; it never touches the academic-risk number.`;
+    const desc=`How many learners are in each attendance band, by days absent &mdash; <b>Good</b>, <b>Worrying</b>, <b>Concerning</b> or <b>Very concerning</b> (the Ministry's STAR bands).`;
     return `<div class="card">${secHead("STAR attendance bands",desc)}${distBlock(segs,"star")}</div>`;
   }
   // Attendance band split (#5): REGULAR / WATCH / AT-RISK across the cohort, the full
@@ -994,7 +994,7 @@
     if(!data.length) return "";
     const segs=[{label:"Regular",n:c.REGULAR,color:"#0f9d58"},{label:"Watch",n:c.WATCH,color:"#e2760a"},{label:"At-risk",n:c.AT_RISK,color:"#d93b34"}];
     if(none) segs.push({label:"No band",n:none,color:"#8794a3"});
-    const desc=`The attention band for every learner in scope &mdash; <b>Regular</b> (&ge;90%), <b>Watch</b>, <b>At-risk</b> &mdash; the full picture behind the regular-attendees headline. From Attendance Intelligence (governed <code>reporting.attendance_*</code>). An <b>independent</b> signal: attendance can escalate Academic Risk by one step but never produces High on its own.`;
+    const desc=`How many learners are attending <b>Regularly</b> (90%+), on <b>Watch</b>, or <b>At-risk</b>.`;
     return `<div class="card">${secHead("Attendance bands",desc)}${distBlock(segs,"attband")}</div>`;
   }
   // Equity lens: achievement, attendance and share at risk by ethnicity / gender,
@@ -1044,7 +1044,7 @@
     } else {
       bodyHtml=`<div style="overflow-x:auto"><table class="ctable"><thead><tr><th>Group</th><th>Achievement</th><th>At or above</th><th>Attendance</th><th>Mod + High risk</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty" style="padding:12px">No group meets the minimum to show.</td></tr>`}</tbody></table></div>${supNote}`;
     }
-    const desc=`Where the gaps are and who they affect, <b>by ${byGender?"gender":"ethnicity"}</b> &mdash; achievement against curriculum expectation, attendance, and the share at academic risk. These are <b>independent signals</b>, never a combined score, and <b>small groups are suppressed</b>, not guessed. The <b>Table</b> ranks groups by achievement; the <b>Pie</b> shows each group's share of the cohort's Moderate + High academic risk.`;
+    const desc=`Each ${byGender?"gender":"ethnicity"} group's share of the learners at risk (<b>Pie</b>), or its achievement, attendance and risk (<b>Table</b>). Small groups are hidden.`;
     return `<div class="card">${secHead((view==="pie"?"Risk equity":"Equity")+" &mdash; by "+(byGender?"gender":"ethnicity"),desc)}${toggle}${bodyHtml}</div>`;
   }
   function renderCohort(){
