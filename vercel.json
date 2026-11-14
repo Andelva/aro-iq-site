@@ -4,6 +4,13 @@
   "buildCommand": null,
   "outputDirectory": ".",
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://aroiq-sandbox-nz.azurewebsites.net/",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -1,26 +1,16 @@
-# ARO IQ — public dashboard site
+# ARO IQ — public demo redirect
 
-Static, public deployment of the **ARO IQ Educational Intelligence** demo dashboard.
+This repo used to hold a static, single-file export of the ARO IQ demo dashboard. That page has been
+**replaced by a redirect** to the live .NET sandbox, which runs the real application against a
+fictitious-data database on Azure (NZ North):
 
-The site is a single self-contained HTML file (`index.html`) exported from the
-ARO IQ Build Package (`build/consumption/aro_iq_dashboard.html`). It embeds the
-**synthetic SYN001 dataset only** — there is no real student PII, no backend and
-no database. Everything (data, logo, photos, scripts) is inlined.
+**https://aroiq-sandbox-nz.azurewebsites.net/**
 
-## Hosting
+- `vercel.json` issues a temporary (307) redirect for every path to the sandbox root. It is temporary on
+  purpose, so browsers do not cache it if the destination changes (e.g. to a custom domain).
+- `index.html` is a tiny fallback (meta refresh + link) for clients that ignore redirects.
+- The old static dashboard is preserved in git history (commit before the redirect). To restore it, revert the
+  redirect commit and push; Vercel redeploys automatically.
 
-- Deployed on **Vercel** as a static site (no build step).
-- `vercel.json` disables framework detection and sets basic security headers.
-- Pushes to the default branch auto-deploy to production.
-
-## Updating the dashboard
-
-1. Rebuild the artifact in the Build Package:
-   `powershell -File build/consumption/build_artifact.ps1 -EmbedJson <embed.json>`
-2. Copy the rebuilt `build/consumption/aro_iq_dashboard.html` over `index.html` here.
-3. Commit and push — Vercel redeploys automatically.
-
-## Data notice
-
-Synthetic demonstration data. Names, results, attendance and photos are
-fabricated and do not represent real learners.
+The sandbox is built and operated from the ARO IQ platform repository (`Andelva/aro-iq`, `build/sandbox/`).
+It contains **fictitious data only** — no real learner information.
